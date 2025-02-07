@@ -44,9 +44,10 @@ Artifacts can be downloaded from the **Actions** tab in GitHub.
 3. Download DLL or EXE from the artifacts section
 
 ## 📜 Acknowledgements for Original Project Source Code
-The original project can be found [here](https://github.com/MTokarev/webhookshell).
--- Author: [Mikhail Tokarev](https://github.com/MTokarev)
--- .NET 6.0 was deprecated so this code is used to update supported .Net version to .NET 8.0 (LTS) 
+The original project can be found [here](https://github.com/MTokarev/webhookshell)
+
+- Author: [Mikhail Tokarev](https://github.com/MTokarev)
+- .NET 6.0 was deprecated so this code is used to update supported .Net version to .NET 8.0 (LTS) 
 
 ---
 **License:** MIT

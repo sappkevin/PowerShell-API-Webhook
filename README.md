@@ -93,7 +93,7 @@ curl -X POST https://localhost:5001/webhook/v1 -d '{"key":"yourKey","script":"Yo
 - API Key validation via `appsettings.json`.
 - IP-based restrictions and execution time windows supported.
 
-## 📜 Acknowledgements for Original Project Source Code
+## 📜 Acknowledgements 
 The original project can be found [here](https://github.com/MTokarev/webhookshell).
 
 - **Author:** [Mikhail Tokarev](https://github.com/MTokarev)

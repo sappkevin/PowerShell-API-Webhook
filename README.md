@@ -1,8 +1,10 @@
 # PowerShell API WebHookShell Build Status
 
-[![Build, Test, and Publish](https://github.com/sappkevin/PowerShell-API-Webhook/actions/workflows/build-and-deploy.yml/badge.svg)](https://github.com/sappkevin/PowerShell-API-Webhook/actions/workflows/build-and-deploy.yml)
+[![.NET Webhook API Build and Release](https://github.com/sappkevin/PowerShell-API-Webhook/actions/workflows/main.yml/badge.svg)](https://github.com/sappkevin/PowerShell-API-Webhook/actions/workflows/main.yml)
 
 # PowerShell-API-Webhook
+
+Currently, you can find published binaries [here](https://github.com/sappkevin/PowerShell-API-Webhook/releases)
 
 Cross-Platform .NET-based PowerShell API Webhook for turning PowerShell Scripts into API endpoints.
 

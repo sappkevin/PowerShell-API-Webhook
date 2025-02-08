@@ -1,3 +1,5 @@
+#nullable enable 
+
 namespace Webhookshell.Models
 {
     public class DtoScript
@@ -8,6 +10,9 @@ namespace Webhookshell.Models
 
     public class DtoResult
     {
+        public string ScriptName { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public string Param { get; set; } = string.Empty;
         public string Output { get; set; } = string.Empty;
         public string Error { get; set; } = string.Empty;
     }

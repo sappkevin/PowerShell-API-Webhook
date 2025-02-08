@@ -1,9 +1,7 @@
-name: .NET Webhook Build and Publish
+name: .NET Webhook API Build and Release
 on:
   push:
     branches: [ main ]
-    tags:
-      - 'v*'  # Trigger on version tags
   pull_request:
     branches: [ main ]
 
@@ -11,10 +9,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Needed for release creation
+      contents: write
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetches all history for all tags and branches
       
     - name: Setup .NET 8.0 (LTS)
       uses: actions/setup-dotnet@v4
@@ -26,6 +26,15 @@ jobs:
       run: |
         BUILD_NUMBER=$(date +%y%j)
         echo "VERSION=1.0.${BUILD_NUMBER}" >> $GITHUB_ENV
+        echo "TAG_NAME=v1.0.${BUILD_NUMBER}" >> $GITHUB_ENV
+        
+    - name: Create and push tag
+      if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git tag ${{ env.TAG_NAME }}
+        git push origin ${{ env.TAG_NAME }}
         
     - name: Restore dependencies
       run: dotnet restore
@@ -62,15 +71,33 @@ jobs:
         cd ../..
         
     - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/')
+      if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: ${{ env.TAG_NAME }}
         files: |
           webhookshell-dll.zip
           webhookshell-exe.zip
-        name: Release ${{ github.ref_name }}
+        name: Release ${{ env.TAG_NAME }}
         body: |
-          Release ${{ github.ref_name }}
-          
-          - DLL Package: Platform independent .NET assembly
-          - EXE Package: Self-contained Windows x64 executable
+          # PowerShell API Webhook ${{ env.TAG_NAME }}
+
+          ## What's New
+          - Support for PowerShell script execution via webhooks
+          - IP address filtering
+          - Time-based triggers
+          - Cross-platform support (Windows/Linux)
+
+          ## Components
+          - `webhookshell-dll.zip`: Platform-independent .NET assembly
+          - `webhookshell-exe.zip`: Self-contained Windows x64 executable
+
+          ## System Requirements
+          - Windows: Windows 10 or later (for EXE package)
+          - Other platforms: .NET 8.0 Runtime
+          - PowerShell Core (pwsh) or Windows PowerShell
+
+          ## Configuration
+          - Update appsettings.json with your webhook configurations
+          - Ensure proper permissions for script execution
+          - Configure IP allow lists if needed

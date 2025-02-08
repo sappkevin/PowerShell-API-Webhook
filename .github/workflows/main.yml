@@ -1,4 +1,4 @@
-name: Build, Test, and Publish
+name: .NET Webhook Build, Test, and Publish
 
 on:
   push:

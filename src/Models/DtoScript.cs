@@ -1,13 +1,23 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace Webhookshell.Models
 {
     public class DtoScript
     {
-        [Required]
-        public string Script { get; set; }
-        public string Param { get; set; }
-        [Required]
-        public string Key { get; set; }
+        public string ScriptPath { get; set; } = string.Empty; // Ensures non-null default
+        public string? Parameters { get; set; } // Optional parameters
+    }
+
+    public class DtoResult
+    {
+        public string Output { get; set; } = string.Empty;
+        public string Error { get; set; } = string.Empty;
+    }
+
+    public class Result<T>
+    {
+        public bool Success { get; set; }
+        public T Data { get; set; }
+        public string? Errors { get; set; } // For any additional error messages
+
+        public bool IsValid => Success && Data != null;
     }
 }

@@ -1,12 +1,14 @@
 using System.Collections.Generic;
-#nullable enable 
+#nullable enable
 
 namespace Webhookshell.Models
 {
     public class DtoScript
     {
-        public string ScriptPath { get; set; } = string.Empty; // Ensures non-null default
-        public string? Parameters { get; set; } // Optional parameters
+        public string ScriptPath { get; set; } = string.Empty;
+        public string? Parameters { get; set; }
+        public string Script { get; set; } = string.Empty;  // Added this property
+        public string Key { get; set; } = string.Empty;     // Added this property
     }
 
     public class DtoResult
@@ -21,7 +23,7 @@ namespace Webhookshell.Models
     public class Result<T>
     {
         public bool Success { get; set; }
-        public T Data { get; set; }
+        public required T Data { get; set; }  // Added 'required' modifier
         public List<string> Errors { get; set; } = new();
         public bool IsValid => Success && Data != null && Errors.Count == 0;
         public bool IsNotValid => !IsValid;

@@ -21,8 +21,8 @@ namespace Webhookshell.Models
     {
         public bool Success { get; set; }
         public T Data { get; set; }
-        public string? Errors { get; set; } // For any additional error messages
-
-        public bool IsValid => Success && Data != null;
+        public List<string> Errors { get; set; } = new();
+        public bool IsValid => Success && Data != null && Errors.Count == 0;
+        public bool IsNotValid => !IsValid;
     }
 }

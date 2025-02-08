@@ -43,11 +43,11 @@ The GitHub Actions workflow:
 - **Runs unit tests**
 - **Publishes** both DLL and EXE artifacts with version numbers
 
-Artifacts can be downloaded from the **Actions** tab in GitHub.
+
 
 ### GitHub Actions Workflow Example
 ```yaml
-name: Build, Test, and Publish
+name: .NET Webhook Build and Release
 on:
   push:
     branches: [ main ]
@@ -76,9 +76,7 @@ jobs:
 ```
 
 ## 📥 Download Artifacts
-1. Go to the **Actions** tab in GitHub.
-2. Select the latest workflow run.
-3. Download DLL or EXE from the artifacts section.
+- Artifacts can be downloaded from **Releases** [link](https://github.com/sappkevin/PowerShell-API-Webhook/releases)
 
 ## ⚡ How the API Works
 - Exposes PowerShell scripts as API endpoints.

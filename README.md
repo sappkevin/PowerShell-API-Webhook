@@ -102,9 +102,9 @@ http://localhost:5001/
 - IP-based restrictions and execution time windows supported
 - HTTPS redirection enabled by default
 
-## Updates 
+## Updates
 ### Upgraded from .NET 6.0 to .NET 8.0 (LTS)
-- **Enhancements:** 
+- **Enhancements:**
   - Added multi-threading support
   - CI/CD automation
   - Improved security measures
@@ -113,7 +113,7 @@ http://localhost:5001/
   - Performance optimizations
 
 
-## 📜 Acknowledgements 
+## 📜 Acknowledgements
 The original project can be found [here](https://github.com/MTokarev/webhookshell).
 
 - **Author:** [Mikhail Tokarev](https://github.com/MTokarev)

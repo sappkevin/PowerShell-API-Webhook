@@ -1,18 +1,23 @@
 # PowerShell API WebHookShell Build Status
 
-[![Build, Test, and Publish](https://github.com/sappkevin/PowerShell-API-Webhook/actions/workflows/build-and-deploy.yml/badge.svg)](https://github.com/sappkevin/PowerShell-API-Webhook/actions/workflows/build-and-deploy.yml)
+[![.NET Webhook API Build and Release](https://github.com/sappkevin/PowerShell-API-Webhook/actions/workflows/main.yml/badge.svg)](https://github.com/sappkevin/PowerShell-API-Webhook/actions/workflows/main.yml)
 
 # PowerShell-API-Webhook
+
+Currently, you can find published binaries [here](https://github.com/sappkevin/PowerShell-API-Webhook/releases)
 
 Cross-Platform .NET-based PowerShell API Webhook for turning PowerShell Scripts into API endpoints.
 
 ## 🚀 Features
 - Supports PowerShell 5.1 & PowerShell Core
 - Cross-platform (Linux, macOS, Windows)
+- Swagger UI for API documentation and testing
+- Docker & Kubernetes support (Windows containers)
 - Unit tested for reliability
 - Automated CI/CD with GitHub Actions
 - Version-controlled builds
-- Multi-threading support via async/await for non-blocking operations
+- Multi-threading support with concurrency limiting
+- Script execution timeout controls
 - Fixed issues from the original codebase (improved performance and stability)
 
 ## 📦 Build & Deploy
@@ -41,64 +46,77 @@ The GitHub Actions workflow:
 - **Runs unit tests**
 - **Publishes** both DLL and EXE artifacts with version numbers
 
-Artifacts can be downloaded from the **Actions** tab in GitHub.
+### Docker Support
+You can use Docker to deploy the application as a Windows container:
 
-### GitHub Actions Workflow Example
-```yaml
-name: Build, Test, and Publish
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Setup .NET 8.0
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-      - name: Restore dependencies
-        run: dotnet restore
-      - name: Build
-        run: dotnet build --configuration Release
-      - name: Test
-        run: dotnet test
-      - name: Publish DLL
-        run: dotnet publish -c Release -o ./publish/dll
-      - name: Publish EXE
-        run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o ./publish/exe
+```bash
+# Build the Docker image
+docker build -t webhookshell:latest -f Dockerfile.windows .
+
+# Run the container
+docker run -d -p 8080:80 -p 8443:443 --name webhookshell webhookshell:latest
+```
+
+### Docker Compose
+For easier deployment, use Docker Compose:
+
+```bash
+docker-compose up -d
+```
+
+### Kubernetes Deployment
+Deploy to a Kubernetes cluster with Windows nodes:
+
+```bash
+kubectl apply -f kubernetes-deployment.yaml
 ```
 
 ## 📥 Download Artifacts
-1. Go to the **Actions** tab in GitHub.
-2. Select the latest workflow run.
-3. Download DLL or EXE from the artifacts section.
+- Artifacts can be downloaded from **Releases** [link](https://github.com/sappkevin/PowerShell-API-Webhook/releases)
 
 ## ⚡ How the API Works
-- Exposes PowerShell scripts as API endpoints.
-- Supports GET/POST HTTP methods.
-- Secure API using API keys.
-- Async operations for non-blocking script executions.
+- Exposes PowerShell scripts as API endpoints
+- Supports GET/POST HTTP methods
+- Secure API using API keys
+- Async operations for non-blocking script executions
+- Swagger UI available at the root URL for testing and documentation
 
 ### Example API Request
 ```bash
+# Using curl
 curl -X POST https://localhost:5001/webhook/v1 -d '{"key":"yourKey","script":"YourScript","param":"-Your-Params"}'
+
+# Or use the Swagger UI in a browser
+http://localhost:5001/
 ```
 
+## 🔧 Performance Optimizations
+- Concurrency limits to prevent resource exhaustion
+- Script execution timeouts (default: 5 minutes)
+- Efficient process management
+- Singleton service registration for improved performance
+- Handles high request-per-second workloads
+
 ## 🗝️ Security & Authentication
-- API Key validation via `appsettings.json`.
-- IP-based restrictions and execution time windows supported.
+- API Key validation via `appsettings.json`
+- IP-based restrictions and execution time windows supported
+- HTTPS redirection enabled by default
+
+## Updates 
+### Upgraded from .NET 6.0 to .NET 8.0 (LTS)
+- **Enhancements:** 
+  - Added multi-threading support
+  - CI/CD automation
+  - Improved security measures
+  - Swagger UI integration
+  - Docker and Kubernetes support
+  - Performance optimizations
+
 
 ## 📜 Acknowledgements 
 The original project can be found [here](https://github.com/MTokarev/webhookshell).
 
 - **Author:** [Mikhail Tokarev](https://github.com/MTokarev)
-- **Updates:** Migrated from .NET 6.0 to .NET 8.0 (LTS).
-- **Enhancements:** Added multi-threading support, CI/CD automation, and improved security measures.
 
 ---
 **License:** MIT

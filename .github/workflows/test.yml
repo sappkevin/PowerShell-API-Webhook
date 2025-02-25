@@ -1,0 +1,185 @@
+name: Webhook API Tests
+
+on:
+  workflow_call:
+    inputs:
+      dotnet-version:
+        required: true
+        type: string
+        description: 'The .NET SDK version to use'
+      
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build project
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Run unit tests
+      run: dotnet test --no-build --verbosity normal
+      
+  functional-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+        
+    # Install PowerShell Core for functional testing
+    - name: Install PowerShell Core
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget apt-transport-https software-properties-common
+        wget -q "https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb"
+        sudo dpkg -i packages-microsoft-prod.deb
+        sudo apt-get update
+        sudo apt-get install -y powershell
+        pwsh -Version
+        
+    # Create test script for functional testing
+    - name: Create test PowerShell script
+      run: |
+        mkdir -p ./publish/scripts/powershell
+        echo 'Write-Output "Test script executed successfully at $(Get-Date)"' > ./publish/scripts/powershell/test-script.ps1
+        
+    # Build and start the application for functional testing
+    - name: Build for functional testing
+      run: |
+        dotnet publish src/Webhookshell.csproj -c Release -o ./publish
+        
+    - name: Create test appsettings.json
+      run: |
+        cat > ./publish/appsettings.json << EOF
+        {
+          "Logging": {
+            "LogLevel": {
+              "Default": "Information",
+              "Microsoft": "Warning",
+              "Microsoft.Hosting.Lifetime": "Information"
+            }
+          },
+          "AllowedHosts": "*",
+          "Scripts": {
+            "DefaultKey": "test-key-123",
+            "Handlers": [
+              {
+                "ProcessName": "pwsh",
+                "ScriptsLocation": "./scripts/powershell",
+                "FileExtension": "ps1",
+                "Key": "test-key-123"
+              }
+            ]
+          }
+        }
+        EOF
+        
+    # Start the application and run functional tests
+    - name: Run functional tests
+      run: |
+        # Start the application in background
+        cd ./publish
+        dotnet Webhookshell.dll &
+        APP_PID=$!
+        
+        # Wait for the application to start
+        sleep 10
+        
+        # Test if the application is running with curl
+        echo "Testing application health..."
+        HEALTH_RESPONSE=$(curl -s http://localhost:5000/health)
+        echo "Health response: $HEALTH_RESPONSE"
+        
+        # Test a script execution
+        echo "Testing script execution..."
+        SCRIPT_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d '{"script":"test-script.ps1","key":"test-key-123"}' http://localhost:5000/webhook/v1)
+        echo "Script execution response: $SCRIPT_RESPONSE"
+        
+        # Check if the response contains success message
+        if echo "$SCRIPT_RESPONSE" | grep -q "Test script executed successfully"; then
+          echo "✅ Functional test passed!"
+          TEST_RESULT=0
+        else
+          echo "❌ Functional test failed!"
+          TEST_RESULT=1
+        fi
+        
+        # Kill the application
+        kill $APP_PID
+        
+        # Exit with test result
+        exit $TEST_RESULT
+
+  docker-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build and test Linux Docker image
+      run: |
+        # Build the Docker image
+        docker build -t webhookshell-linux:test -f Dockerfile.linux .
+        
+        # Create test scripts directory
+        mkdir -p ./test/scripts/powershell
+        echo 'Write-Output "Docker test script executed successfully at $(Get-Date)"' > ./test/scripts/powershell/test-script.ps1
+        
+        # Run the container with test configuration
+        docker run -d --name webhookshell-test \
+          -p 8080:80 \
+          -v $(pwd)/test/scripts:/app/scripts \
+          -e "Scripts__DefaultKey=docker-test-key" \
+          webhookshell-linux:test
+        
+        # Wait for the container to start
+        sleep 15
+        
+        # Test if the API is running
+        echo "Testing container health..."
+        HEALTH_RESPONSE=$(curl -s http://localhost:8080/health || echo "Failed to connect")
+        echo "Health response: $HEALTH_RESPONSE"
+        
+        # Test a script execution
+        echo "Testing script execution in container..."
+        SCRIPT_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
+          -d '{"script":"test-script.ps1","key":"docker-test-key"}' \
+          http://localhost:8080/webhook/v1 || echo "Failed to execute script")
+        echo "Script execution response: $SCRIPT_RESPONSE"
+        
+        # Capture container logs for debugging
+        echo "Container logs:"
+        docker logs webhookshell-test
+        
+        # Check if the response contains success message
+        if echo "$SCRIPT_RESPONSE" | grep -q "Docker test script executed successfully"; then
+          echo "✅ Docker test passed!"
+          TEST_RESULT=0
+        else
+          echo "❌ Docker test failed!"
+          TEST_RESULT=1
+        fi
+        
+        # Cleanup
+        docker stop webhookshell-test
+        docker rm webhookshell-test
+        
+        # Exit with test result
+        exit $TEST_RESULT

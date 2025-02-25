@@ -1,9 +1,17 @@
+
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    <!-- Uncomment to add Application Insights support -->
+    <!-- <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.22.0" /> -->
+  </ItemGroup>
   <ItemGroup>
     <Content Include="./scripts/powershell/**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

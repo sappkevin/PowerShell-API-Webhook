@@ -86,12 +86,12 @@ jobs:
             "Handlers": [
               {
                 "ProcessName": "pwsh",
-                "ScriptsLocation": "./scripts/powershell",
+                "ScriptsLocation": "/app/scripts/powershell",
                 "FileExtension": "ps1",
                 "Key": "test-key-123",
                 "ScriptsMapping": [
                   {
-                    "Name": "test-script.ps1",
+                    "Name": "docker-test.ps1",
                     "Key": "test-key-123"
                   }
                 ]

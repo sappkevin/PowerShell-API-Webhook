@@ -197,9 +197,9 @@ jobs:
         RUN chmod +x /app/scripts/powershell/docker-test.ps1
         
         # Create a custom configuration for testing with DEBUG logging
-        RUN echo '{ "Logging": { "LogLevel": { "Default": "Debug", "Microsoft": "Information", "Microsoft.Hosting.Lifetime": "Information", "Webhookshell": "Debug" } }, "AllowedHosts": "*", "Scripts": { "DefaultKey": "test-api-key", "Handlers": [ { "ProcessName": "pwsh", "ScriptsLocation": "./scripts/powershell", "FileExtension": "ps1", "Key": "test-api-key", "ScriptsMapping": [ { "Name": "docker-test.ps1", "Key": "test-api-key" } ] } ] } }' > /app/appsettings.json
-        
-        # Verify PowerShell and script availability
+        # Create a custom configuration for testing with DEBUG logging
+        RUN echo '{ "Logging": { "LogLevel": { "Default": "Debug", "Microsoft": "Information", "Microsoft.Hosting.Lifetime": "Information", "Webhookshell": "Debug" } }, "AllowedHosts": "*", "Scripts": { "DefaultKey": "test-api-key", "Handlers": [ { "ProcessName": "pwsh", "ScriptsLocation": "/app/scripts/powershell", "FileExtension": "ps1", "Key": "test-api-key", "ScriptsMapping": [ { "Name": "docker-test.ps1", "Key": "test-api-key" } ] } ] } }' > /app/appsettings.json
+
         RUN pwsh -Command "Write-Host 'PowerShell version:' (pwsh -Version)" && \
             pwsh -Command "Write-Host 'Script exists:' (Test-Path '/app/scripts/powershell/docker-test.ps1')" && \
             pwsh -Command "Write-Host 'Script content:' (Get-Content '/app/scripts/powershell/docker-test.ps1')" && \

@@ -55,8 +55,8 @@ jobs:
     - name: Create test PowerShell script
       run: |
         mkdir -p ./scripts/powershell
-        echo 'Write-Output "Test script executed successfully at $(Get-Date)"' > ./scripts/powershell/test-script.ps1
-        chmod +x ./scripts/powershell/test-script.ps1
+        echo 'Write-Output "Test script executed successfully at $(Get-Date)"' > ./scripts/powershell/docker-test.ps1
+        chmod +x ./scripts/powershell/docker-test.ps1
         ls -la ./scripts/powershell/
         
     # Build and start the application for functional testing

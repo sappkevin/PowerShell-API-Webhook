@@ -6,8 +6,15 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  test:
+    uses: ./.github/workflows/test.yml
+    with:
+      dotnet-version: '8.0.x'
+
+  build-and-release:
+    needs: test
     runs-on: ubuntu-latest
+    if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
     permissions:
       contents: write
     steps:
@@ -24,12 +31,19 @@ jobs:
     - name: Create version number
       id: version
       run: |
-        BUILD_NUMBER=$(date +%y%j)
+        # Create a more unique version using date, time, and run number
+        DATE_PART=$(date +%y%j)
+        TIME_PART=$(date +%H%M%S)
+        RUN_ID="${GITHUB_RUN_ID:-0}"
+        
+        BUILD_NUMBER="${DATE_PART}.${TIME_PART}.${RUN_ID}"
         echo "VERSION=1.0.${BUILD_NUMBER}" >> $GITHUB_ENV
         echo "TAG_NAME=v1.0.${BUILD_NUMBER}" >> $GITHUB_ENV
         
+        echo "Generated version: 1.0.${BUILD_NUMBER}"
+        echo "Generated tag: v1.0.${BUILD_NUMBER}"
+        
     - name: Create and push tag
-      if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
@@ -41,10 +55,7 @@ jobs:
       
     - name: Build the project
       run: dotnet build --configuration Release --no-restore
-      
-    - name: Run unit tests
-      run: dotnet test --no-build --verbosity normal
-      
+        
     - name: Publish DLL
       run: |
         dotnet publish src/Webhookshell.csproj \
@@ -71,7 +82,6 @@ jobs:
         cd ../..
         
     - name: Create Release
-      if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ env.TAG_NAME }}
@@ -87,6 +97,8 @@ jobs:
           - IP address filtering
           - Time-based triggers
           - Cross-platform support (Windows/Linux)
+          - Swagger UI for API documentation and testing
+          - Docker and Kubernetes support
 
           ## Components
           - `webhookshell-dll.zip`: Platform-independent .NET assembly

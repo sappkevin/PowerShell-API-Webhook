@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.Diagnostics;
 
 namespace Webhookshell.Controllers
 {
@@ -48,3 +49,5 @@ namespace Webhookshell.Controllers
 
             return Ok(status);
         }
+    }
+}

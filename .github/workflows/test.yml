@@ -160,7 +160,7 @@ jobs:
     - name: Docker test 1 with debugging - Check HealthCheck and PS Script
       run: |
             echo "Creating test PowerShell script..."
-            mkdir -p ./src/scripts/powershell
+            mkdir -p /app/scripts/powershell
             echo 'Write-Output "Docker test script executed successfully at $(Get-Date)"' > /app/scripts/powershell/docker-test.ps1
             chmod +x /app/scripts/powershell/docker-test.ps1
             
@@ -300,7 +300,7 @@ jobs:
     - name: Docker test 2 with failure on error - Check HealthCheck and PS Script
       run: |
             echo "Creating test PowerShell script..."
-            mkdir -p ./src/scripts/powershell
+            mkdir -p /app/scripts/powershell
             echo 'Write-Output "Docker test script executed successfully at $(Get-Date)"' > /app/scripts/powershell/docker-test.ps1
             chmod +x /app/scripts/powershell/docker-test.ps1
             

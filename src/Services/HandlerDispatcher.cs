@@ -32,33 +32,7 @@ namespace Webhookshell.Services
                     return result;
                 }
                 
-                // Debug output of current environment
-                var currentDirectory = Directory.GetCurrentDirectory();
-                _logger.LogInformation($"Current directory: {currentDirectory}");
-                _logger.LogInformation($"Requested script: {scriptToCheck.Script}");
-                
-                // Log available directories
-                try
-                {
-                    var dirs = Directory.GetDirectories(currentDirectory);
-                    _logger.LogInformation($"Available directories: {string.Join(", ", dirs)}");
-                    
-                    if (Directory.Exists(Path.Combine(currentDirectory, "scripts")))
-                    {
-                        var scriptDirs = Directory.GetDirectories(Path.Combine(currentDirectory, "scripts"));
-                        _logger.LogInformation($"Script subdirectories: {string.Join(", ", scriptDirs)}");
-                        
-                        if (Directory.Exists(Path.Combine(currentDirectory, "scripts", "powershell")))
-                        {
-                            var psFiles = Directory.GetFiles(Path.Combine(currentDirectory, "scripts", "powershell"));
-                            _logger.LogInformation($"PowerShell scripts: {string.Join(", ", psFiles)}");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning($"Error listing directories: {ex.Message}");
-                }
+                _logger.LogInformation($"Processing script request: {scriptToCheck.Script}");
                 
                 // Fixed bug: Properly extract extension by getting the part after the last dot
                 string scriptExtension = null;
@@ -77,9 +51,6 @@ namespace Webhookshell.Services
 
                 _logger.LogInformation($"Script extension: {scriptExtension}");
                 
-                // Log the available handlers for debugging
-                _logger.LogInformation($"Available handlers: {string.Join(", ", _options.Handlers.Select(h => h.FileExtension))}");
-
                 ScriptHandler handler = _options
                     .Handlers
                     .Where(script => string.Equals(script.FileExtension, scriptExtension, StringComparison.InvariantCultureIgnoreCase))
@@ -93,51 +64,45 @@ namespace Webhookshell.Services
 
                 _logger.LogInformation($"Found handler for {scriptExtension}, script location: {handler.ScriptsLocation}");
                 
-                // Set the full script path for execution, ensuring it's a clean path
-                string cleanScriptName = Path.GetFileName(scriptToCheck.Script);
+                // Set the full script path for execution
+                string scriptName = Path.GetFileName(scriptToCheck.Script);
                 
-                // Let's be very explicit about path resolution
-                string scriptPath;
+                // Use absolute path handling with multiple fallbacks
+                string scriptPath = null;
                 
-                // First check for absolute path in handler config
-                if (Path.IsPathRooted(handler.ScriptsLocation))
+                // Try handler location directly first
+                scriptPath = Path.Combine(handler.ScriptsLocation, scriptName);
+                _logger.LogInformation($"Trying script path: {scriptPath}");
+                
+                if (!File.Exists(scriptPath))
                 {
-                    scriptPath = Path.Combine(handler.ScriptsLocation, cleanScriptName);
-                    _logger.LogInformation($"Using absolute path from config: {scriptPath}");
-                }
-                // If it's a relative path starting with ./ or ../
-                else if (handler.ScriptsLocation.StartsWith("./") || handler.ScriptsLocation.StartsWith("../"))
-                {
-                    scriptPath = Path.GetFullPath(Path.Combine(currentDirectory, handler.ScriptsLocation, cleanScriptName));
-                    _logger.LogInformation($"Using relative path from config: {scriptPath}");
-                }
-                // Try a direct path under the current directory
-                else
-                {
-                    // If path does not contain directory separators, assume a subdirectory of current directory
-                    if (!handler.ScriptsLocation.Contains(Path.DirectorySeparatorChar))
+                    // Try resolving as an absolute path if handler location is absolute
+                    if (Path.IsPathRooted(handler.ScriptsLocation))
                     {
-                        scriptPath = Path.Combine(currentDirectory, handler.ScriptsLocation, cleanScriptName);
-                        _logger.LogInformation($"Using path as subdirectory: {scriptPath}");
+                        scriptPath = Path.Combine(handler.ScriptsLocation, scriptName);
+                        _logger.LogInformation($"Trying absolute path: {scriptPath}");
                     }
                     else
                     {
-                        // Otherwise use exactly as specified
-                        scriptPath = Path.Combine(handler.ScriptsLocation, cleanScriptName);
-                        _logger.LogInformation($"Using path as specified: {scriptPath}");
-                    }
-                }
-                
-                // Explicit fallback for CI environment - if nothing else worked, try a direct path under scripts/powershell
-                if (!File.Exists(scriptPath))
-                {
-                    var fallbackPath = Path.Combine(currentDirectory, "scripts", "powershell", cleanScriptName);
-                    _logger.LogInformation($"Script not found, trying fallback path: {fallbackPath}");
-                    
-                    if (File.Exists(fallbackPath))
-                    {
-                        scriptPath = fallbackPath;
-                        _logger.LogInformation($"Using fallback path: {scriptPath}");
+                        // Try as relative to application directory
+                        string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                        scriptPath = Path.Combine(baseDir, handler.ScriptsLocation, scriptName);
+                        _logger.LogInformation($"Trying relative to app directory: {scriptPath}");
+                        
+                        // If still not found, try removing any ./ prefix
+                        if (!File.Exists(scriptPath) && handler.ScriptsLocation.StartsWith("./"))
+                        {
+                            string noRelativePath = handler.ScriptsLocation.Substring(2);
+                            scriptPath = Path.Combine(baseDir, noRelativePath, scriptName);
+                            _logger.LogInformation($"Trying without ./ prefix: {scriptPath}");
+                        }
+                        
+                        // Last attempt - try at app root level directly
+                        if (!File.Exists(scriptPath))
+                        {
+                            scriptPath = Path.Combine(baseDir, "scripts", "powershell", scriptName);
+                            _logger.LogInformation($"Last attempt at app root: {scriptPath}");
+                        }
                     }
                 }
                 
@@ -149,8 +114,7 @@ namespace Webhookshell.Services
                 if (!File.Exists(scriptToCheck.ScriptPath))
                 {
                     _logger.LogWarning($"Script file not found: {scriptToCheck.ScriptPath}");
-                    
-                    result.Errors.Add($"Script '{scriptToCheck.Script}' not found at path '{scriptToCheck.ScriptPath}'. Please verify the script name and location.");
+                    result.Errors.Add($"Script '{scriptToCheck.Script}' not found at path '{scriptToCheck.ScriptPath}'. Please verify the script exists.");
                     return result;
                 }
 

@@ -51,6 +51,9 @@ namespace Webhookshell.Services
 
                 _logger.LogInformation($"Script extension: {scriptExtension}");
                 
+                // Log the available handlers for debugging
+                _logger.LogInformation($"Available handlers: {string.Join(", ", _options.Handlers.Select(h => h.FileExtension))}");
+
                 ScriptHandler handler = _options
                     .Handlers
                     .Where(script => string.Equals(script.FileExtension, scriptExtension, StringComparison.InvariantCultureIgnoreCase))

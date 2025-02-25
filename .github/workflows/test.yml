@@ -124,7 +124,7 @@ jobs:
         
         # Now let's test PowerShell execution directly
         echo "Test script path:"
-        TEST_SCRIPT="./scripts/powershell/test-script.ps1"
+        TEST_SCRIPT="./scripts/powershell/docker-test.ps1"
         if [ -f "$TEST_SCRIPT" ]; then
           echo "Script exists at $TEST_SCRIPT"
         else

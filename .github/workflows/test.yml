@@ -169,7 +169,7 @@ jobs:
             cat > Dockerfile.test << EOF
             # Build stage
             FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-            WORKDIR /src
+            WORKDIR /app
             
             # Copy csproj and restore dependencies
             COPY ["src/Webhookshell.csproj", "./"]
@@ -310,7 +310,7 @@ jobs:
             cat > Dockerfile.test << EOF
             # Build stage
             FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-            WORKDIR /src
+            WORKDIR /app
             
             # Copy csproj and restore dependencies
             COPY ["src/Webhookshell.csproj", "./"]

@@ -161,8 +161,8 @@ jobs:
       run: |
             echo "Creating test PowerShell script..."
             mkdir -p ./src/scripts/powershell
-            echo 'Write-Output "Docker test script executed successfully at $(Get-Date)"' > ./src/scripts/powershell/docker-test.ps1
-            chmod +x ./src/scripts/powershell/docker-test.ps1
+            echo 'Write-Output "Docker test script executed successfully at $(Get-Date)"' > /app/scripts/powershell/docker-test.ps1
+            chmod +x /app/scripts/powershell/docker-test.ps1
             
             echo "Creating Dockerfile for testing the real API..."
             cat > Dockerfile.test << EOF
@@ -301,8 +301,8 @@ jobs:
       run: |
             echo "Creating test PowerShell script..."
             mkdir -p ./src/scripts/powershell
-            echo 'Write-Output "Docker test script executed successfully at $(Get-Date)"' > ./src/scripts/powershell/docker-test.ps1
-            chmod +x ./src/scripts/powershell/docker-test.ps1
+            echo 'Write-Output "Docker test script executed successfully at $(Get-Date)"' > /app/scripts/powershell/docker-test.ps1
+            chmod +x /app/scripts/powershell/docker-test.ps1
             
             echo "Creating Dockerfile for testing the real API..."
             cat > Dockerfile.test << EOF

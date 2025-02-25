@@ -261,7 +261,7 @@ jobs:
                 # Test the API endpoint with POST with verbose output
                 echo "Testing API endpoint with POST..."
                 API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
-                -d '{"script":"docker-test.ps1","key":"test-api-key"}' \
+                -d '{"script":"docker-test.ps1","scriptPath":"/app/scripts/powershell/docker-test.ps1","key":"test-api-key"}' \
                 http://localhost:8080/webhook/v1 || echo "FAILED")
                 echo "API response (POST): $API_RESPONSE"
                 

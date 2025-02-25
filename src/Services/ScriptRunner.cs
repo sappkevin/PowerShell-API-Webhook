@@ -8,6 +8,7 @@ using System;
 using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Collections.Concurrent;
+using System.IO;
 
 namespace Webhookshell.Services
 {
@@ -70,12 +71,30 @@ namespace Webhookshell.Services
             var shell = GetPowerShellPath();
             var result = new Result<DtoResult> { Data = new DtoResult() };
             
+            // Log detailed information about script execution
+            _logger.LogInformation($"Executing script: {scriptToRun.Script} at path: {scriptToRun.ScriptPath}");
+            
+            // Verify script exists
+            if (!File.Exists(scriptToRun.ScriptPath))
+            {
+                _logger.LogError($"Script not found at path: {scriptToRun.ScriptPath}");
+                result.Success = false;
+                result.Data.Error = $"Script file not found: {scriptToRun.Script}";
+                return result;
+            }
+            
+            // Make the script path absolute if it's relative
+            string scriptFullPath = Path.GetFullPath(scriptToRun.ScriptPath);
+            _logger.LogInformation($"Full script path: {scriptFullPath}");
+            
             // Prepare command arguments properly
-            string arguments = $"-File \"{scriptToRun.ScriptPath}\"";
+            string arguments = $"-File \"{scriptFullPath}\"";
             if (!string.IsNullOrEmpty(scriptToRun.Parameters))
             {
                 arguments += $" {scriptToRun.Parameters}";
             }
+            
+            _logger.LogInformation($"PowerShell command: {shell} {arguments}");
 
             var process = new Process
             {
@@ -86,13 +105,16 @@ namespace Webhookshell.Services
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
-                    CreateNoWindow = true
+                    CreateNoWindow = true,
+                    WorkingDirectory = Path.GetDirectoryName(scriptFullPath) // Set working directory to script location
                 }
             };
 
             try
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)); // 5 minute timeout
+                
+                _logger.LogInformation("Starting PowerShell process...");
                 process.Start();
 
                 var outputTask = process.StandardOutput.ReadToEndAsync();
@@ -133,8 +155,19 @@ namespace Webhookshell.Services
                 }
 
                 // Now that we know the process has exited, get output and error
-                result.Data.Output = await outputTask;
-                result.Data.Error = await errorTask;
+                var output = await outputTask;
+                var error = await errorTask;
+                
+                _logger.LogInformation($"Process exit code: {process.ExitCode}");
+                _logger.LogInformation($"Process output: {output}");
+                
+                if (!string.IsNullOrEmpty(error))
+                {
+                    _logger.LogError($"Process error: {error}");
+                }
+                
+                result.Data.Output = output;
+                result.Data.Error = error;
                 result.Success = process.ExitCode == 0;
                 
                 // Populate additional information
@@ -164,9 +197,14 @@ namespace Webhookshell.Services
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 if (IsPowerShellCoreInstalled())
+                {
+                    _logger.LogInformation("Using PowerShell Core (pwsh) on Windows");
                     return "pwsh";
+                }
+                _logger.LogInformation("Using Windows PowerShell (powershell.exe)");
                 return "powershell.exe";
             }
+            _logger.LogInformation("Using PowerShell Core (pwsh) on non-Windows platform");
             return "pwsh";
         }
 
@@ -189,8 +227,9 @@ namespace Webhookshell.Services
                 process.WaitForExit();
                 return process.ExitCode == 0;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Error checking for PowerShell Core installation");
                 return false;
             }
         }

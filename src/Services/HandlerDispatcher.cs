@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Options;
 using Webhookshell.Interfaces;
@@ -31,6 +32,8 @@ namespace Webhookshell.Services
                     return result;
                 }
                 
+                _logger.LogInformation($"Processing script request: {scriptToCheck.Script}");
+                
                 // Fixed bug: Properly extract extension by getting the part after the last dot
                 string scriptExtension = null;
                 int lastDotIndex = scriptToCheck.Script.LastIndexOf('.');
@@ -46,6 +49,11 @@ namespace Webhookshell.Services
                     return result;
                 }
 
+                _logger.LogInformation($"Script extension: {scriptExtension}");
+                
+                // Log the available handlers for debugging
+                _logger.LogInformation($"Available handlers: {string.Join(", ", _options.Handlers.Select(h => h.FileExtension))}");
+
                 ScriptHandler handler = _options
                     .Handlers
                     .Where(script => string.Equals(script.FileExtension, scriptExtension, StringComparison.InvariantCultureIgnoreCase))
@@ -57,13 +65,44 @@ namespace Webhookshell.Services
                     return result;
                 }
 
-                // Set the full script path for execution
-                scriptToCheck.ScriptPath = System.IO.Path.Combine(handler.ScriptsLocation, scriptToCheck.Script);
+                _logger.LogInformation($"Found handler for {scriptExtension}, script location: {handler.ScriptsLocation}");
+                
+                // Set the full script path for execution, ensuring it's a clean path
+                string cleanScriptName = Path.GetFileName(scriptToCheck.Script);
+                
+                if (Path.IsPathRooted(handler.ScriptsLocation))
+                {
+                    // If the handler has an absolute path, use it directly
+                    scriptToCheck.ScriptPath = Path.Combine(handler.ScriptsLocation, cleanScriptName);
+                }
+                else
+                {
+                    // If it's a relative path, make it relative to the current directory
+                    string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                    string relativePath = handler.ScriptsLocation.TrimStart('.', '/', '\\');
+                    scriptToCheck.ScriptPath = Path.Combine(baseDirectory, relativePath, cleanScriptName);
+                }
+                
+                _logger.LogInformation($"Full script path: {scriptToCheck.ScriptPath}");
                 
                 // Verify the script exists
-                if (!System.IO.File.Exists(scriptToCheck.ScriptPath))
+                if (!File.Exists(scriptToCheck.ScriptPath))
                 {
                     _logger.LogWarning($"Script file not found: {scriptToCheck.ScriptPath}");
+                    
+                    // Try to find the script by searching the directory
+                    string scriptDirectory = Path.GetDirectoryName(scriptToCheck.ScriptPath);
+                    
+                    if (Directory.Exists(scriptDirectory))
+                    {
+                        _logger.LogInformation($"Directory exists: {scriptDirectory}");
+                        _logger.LogInformation($"Directory contents: {string.Join(", ", Directory.GetFiles(scriptDirectory))}");
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"Directory does not exist: {scriptDirectory}");
+                    }
+                    
                     result.Errors.Add($"Script '{scriptToCheck.Script}' not found in the scripts directory. Please verify the script name and try again.");
                     return result;
                 }

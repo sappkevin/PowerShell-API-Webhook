@@ -51,14 +51,6 @@ jobs:
         sudo apt-get install -y powershell
         pwsh -Version
         
-    # Create test script for functional testing
-    - name: Create test PowerShell script
-      run: |
-        mkdir -p ./scripts/powershell
-        echo 'Write-Output "Test script executed successfully at $(Get-Date)"' > ./scripts/powershell/docker-test.ps1
-        chmod +x ./scripts/powershell/docker-test.ps1
-        ls -la ./scripts/powershell/
-        
     # Build and start the application for functional testing
     - name: Build for functional testing
       run: |
@@ -86,7 +78,7 @@ jobs:
             "Handlers": [
               {
                 "ProcessName": "pwsh",
-                "ScriptsLocation": "/app/scripts/powershell",
+                "ScriptsLocation": "./scripts/powershell",
                 "FileExtension": "ps1",
                 "Key": "test-key-123",
                 "ScriptsMapping": [
@@ -159,10 +151,7 @@ jobs:
 
     - name: Docker test with failure on error - Check HealthCheck and PS Script
       run: |
-            echo "Creating test PowerShell script..."
-            mkdir -p ./src/scripts/powershell
-            echo 'Write-Output "Docker test script executed successfully at $(Get-Date)"' > ./src/scripts/powershell/docker-test.ps1
-            chmod +x ./src/scripts/powershell/docker-test.ps1
+            # Verify the script exists in the repo
             ls -la ./src/scripts/powershell/
             
             echo "Creating Dockerfile for testing the real API..."
@@ -200,18 +189,18 @@ jobs:
             # Create scripts directory structure and ensure permissions
             RUN mkdir -p /app/scripts/powershell && chmod -R 755 /app/scripts
             
-            # Copy test script (use Dockerfile context for source)
+            # Copy test script from the context
             COPY ["src/scripts/powershell/docker-test.ps1", "/app/scripts/powershell/"]
             RUN chmod +x /app/scripts/powershell/docker-test.ps1
             
             # Create a custom configuration for testing with DEBUG logging
-            RUN echo '{   "Logging": {     "LogLevel": {       "Default": "Debug",       "Microsoft": "Information",       "Microsoft.Hosting.Lifetime": "Information",       "Webhookshell": "Debug"     }   },   "AllowedHosts": "*",   "Scripts": {     "DefaultKey": "test-api-key",     "Handlers": [       {         "ProcessName": "pwsh",         "ScriptsLocation": "/app/scripts/powershell",         "FileExtension": "ps1",         "Key": "test-api-key",         "ScriptsMapping": [           {             "Name": "docker-test.ps1",             "Key": "test-api-key"           }         ]       }     ]   } }' > /app/appsettings.json
+            RUN echo '{   "Logging": {     "LogLevel": {       "Default": "Debug",       "Microsoft": "Information",       "Microsoft.Hosting.Lifetime": "Information",       "Webhookshell": "Debug"     }   },   "AllowedHosts": "*",   "Scripts": {     "DefaultKey": "test-api-key",     "Handlers": [       {         "ProcessName": "pwsh",         "ScriptsLocation": "./scripts/powershell",         "FileExtension": "ps1",         "Key": "test-api-key",         "ScriptsMapping": [           {             "Name": "docker-test.ps1",             "Key": "test-api-key"           }         ]       }     ]   } }' > /app/appsettings.json
             
             # Verify PowerShell and script availability
             RUN pwsh -Command "Write-Host 'PowerShell version:' (pwsh -Version)" && \
-            pwsh -Command "Write-Host 'Script exists:' (Test-Path '/app/scripts/powershell/docker-test.ps1')" && \
-            pwsh -Command "Write-Host 'Script content:' (Get-Content '/app/scripts/powershell/docker-test.ps1')" && \
-            pwsh -Command "Write-Host 'Script execution test:' (pwsh -File '/app/scripts/powershell/docker-test.ps1')"
+                pwsh -Command "Write-Host 'Script exists:' (Test-Path '/app/scripts/powershell/docker-test.ps1')" && \
+                pwsh -Command "Write-Host 'Script content:' (Get-Content '/app/scripts/powershell/docker-test.ps1')" && \
+                pwsh -Command "Write-Host 'Script execution test:' (pwsh -File '/app/scripts/powershell/docker-test.ps1')"
             
             # Set environment variables
             ENV ASPNETCORE_URLS=http://+:80
@@ -221,8 +210,8 @@ jobs:
             
             echo "Building Docker image..."
             if ! docker build -t webhookshell-api:test -f Dockerfile.test .; then
-            echo "❌ Docker build failed"
-            exit 1
+              echo "❌ Docker build failed"
+              exit 1
             fi
             
             echo "Docker build successful"
@@ -231,8 +220,8 @@ jobs:
             CONTAINER_ID=$(docker run -d --name webhookshell-api -p 8080:80 webhookshell-api:test || echo "FAILED")
             
             if [[ "$CONTAINER_ID" == "FAILED" ]]; then
-            echo "❌ Docker container failed to start"
-            exit 1
+              echo "❌ Docker container failed to start"
+              exit 1
             fi
             
             echo "Container started with ID: $CONTAINER_ID"
@@ -243,10 +232,12 @@ jobs:
             
             # Enhanced debugging: Check directory structure
             echo "Verifying script paths in container..."
-            docker exec webhookshell-api ls -la /app
-            docker exec webhookshell-api ls -la /app/scripts
-            docker exec webhookshell-api ls -la /app/scripts/powershell
-            docker exec webhookshell-api cat /app/appsettings.json
+            docker exec webhookshell-api bash -c "ls -la /app"
+            docker exec webhookshell-api bash -c "ls -la /app/scripts"
+            docker exec webhookshell-api bash -c "ls -la /app/scripts/powershell"
+            docker exec webhookshell-api bash -c "cat /app/appsettings.json"
+            docker exec webhookshell-api bash -c "pwd"
+            docker exec webhookshell-api bash -c "find /app -name docker-test.ps1"
             
             # Check container logs for issues
             echo "Container logs:"
@@ -255,7 +246,7 @@ jobs:
             # Direct check of PowerShell in container
             echo "Testing PowerShell directly in container..."
             docker exec webhookshell-api pwsh -Version
-            docker exec webhookshell-api cat /app/scripts/powershell/docker-test.ps1
+            docker exec webhookshell-api bash -c "cat /app/scripts/powershell/docker-test.ps1"
             PS_RESULT=$(docker exec webhookshell-api pwsh -File /app/scripts/powershell/docker-test.ps1)
             echo "PowerShell direct execution result: $PS_RESULT"
             
@@ -277,19 +268,19 @@ jobs:
             
             # Verify the responses
             if [[ "$HEALTH_RESPONSE" == *"Healthy"* ]]; then
-            echo "✅ Health endpoint test passed"
-            HEALTH_OK=true
+              echo "✅ Health endpoint test passed"
+              HEALTH_OK=true
             else
-            echo "❌ Health endpoint test failed"
-            HEALTH_OK=false
+              echo "❌ Health endpoint test failed"
+              HEALTH_OK=false
             fi
             
             if [[ "$API_RESPONSE" == *"executed successfully"* ]]; then
-            echo "✅ API endpoint test passed"
-            API_OK=true
+              echo "✅ API endpoint test passed"
+              API_OK=true
             else
-            echo "❌ API endpoint test failed"
-            API_OK=false
+              echo "❌ API endpoint test failed"
+              API_OK=false
             fi
             
             # Clean up
@@ -298,10 +289,10 @@ jobs:
             
             # Final result - FAIL if API test fails
             if [ "$API_OK" = true ]; then
-            echo "✅ Docker test passed - API working correctly"
-            exit 0
+              echo "✅ Docker test passed - API working correctly"
+              exit 0
             else
-            echo "❌ Docker test failed - API not working"
-            # This will cause the pipeline to fail
-            exit 1
+              echo "❌ Docker test failed - API not working"
+              # This will cause the pipeline to fail
+              exit 1
             fi

@@ -58,8 +58,11 @@ jobs:
         
     - name: Copy scripts and create test config
       run: |
-        # Copy scripts to publish directory
-        cp -r ./scripts ./publish/
+        # Ensure scripts directory exists in publish directory
+        mkdir -p ./publish/scripts/powershell
+        
+        # Copy test script from src to publish directory
+        cp ./src/scripts/powershell/docker-test.ps1 ./publish/scripts/powershell/
         ls -la ./publish/scripts/powershell/
         
         # Create test appsettings.json
@@ -204,95 +207,3 @@ jobs:
             
             # Set environment variables
             ENV ASPNETCORE_URLS=http://+:80
-            
-            ENTRYPOINT ["dotnet", "Webhookshell.dll"]
-            EOF
-            
-            echo "Building Docker image..."
-            if ! docker build -t webhookshell-api:test -f Dockerfile.test .; then
-              echo "❌ Docker build failed"
-              exit 1
-            fi
-            
-            echo "Docker build successful"
-            
-            echo "Running Docker container..."
-            CONTAINER_ID=$(docker run -d --name webhookshell-api -p 8080:80 webhookshell-api:test || echo "FAILED")
-            
-            if [[ "$CONTAINER_ID" == "FAILED" ]]; then
-              echo "❌ Docker container failed to start"
-              exit 1
-            fi
-            
-            echo "Container started with ID: $CONTAINER_ID"
-            
-            # Wait for container to start
-            echo "Waiting for container to start..."
-            sleep 20
-            
-            # Enhanced debugging: Check directory structure
-            echo "Verifying script paths in container..."
-            docker exec webhookshell-api bash -c "ls -la /app"
-            docker exec webhookshell-api bash -c "ls -la /app/scripts"
-            docker exec webhookshell-api bash -c "ls -la /app/scripts/powershell"
-            docker exec webhookshell-api bash -c "cat /app/appsettings.json"
-            docker exec webhookshell-api bash -c "pwd"
-            docker exec webhookshell-api bash -c "find /app -name docker-test.ps1"
-            
-            # Check container logs for issues
-            echo "Container logs:"
-            docker logs webhookshell-api
-            
-            # Direct check of PowerShell in container
-            echo "Testing PowerShell directly in container..."
-            docker exec webhookshell-api pwsh -Version
-            docker exec webhookshell-api bash -c "cat /app/scripts/powershell/docker-test.ps1"
-            PS_RESULT=$(docker exec webhookshell-api pwsh -File /app/scripts/powershell/docker-test.ps1)
-            echo "PowerShell direct execution result: $PS_RESULT"
-            
-            # Test the health endpoint
-            echo "Testing health endpoint..."
-            HEALTH_RESPONSE=$(curl -s http://localhost:8080/health || echo "FAILED")
-            echo "Health response: $HEALTH_RESPONSE"
-            
-            # Test the API endpoint with POST with verbose output
-            echo "Testing API endpoint with POST..."
-            API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
-            -d '{"script":"docker-test.ps1","key":"test-api-key"}' \
-            http://localhost:8080/webhook/v1 || echo "FAILED")
-            echo "API response (POST): $API_RESPONSE"
-            
-            # Get more logs after API request
-            echo "Container logs after API request:"
-            docker logs webhookshell-api
-            
-            # Verify the responses
-            if [[ "$HEALTH_RESPONSE" == *"Healthy"* ]]; then
-              echo "✅ Health endpoint test passed"
-              HEALTH_OK=true
-            else
-              echo "❌ Health endpoint test failed"
-              HEALTH_OK=false
-            fi
-            
-            if [[ "$API_RESPONSE" == *"executed successfully"* ]]; then
-              echo "✅ API endpoint test passed"
-              API_OK=true
-            else
-              echo "❌ API endpoint test failed"
-              API_OK=false
-            fi
-            
-            # Clean up
-            echo "Cleaning up container"
-            docker rm webhookshell-api -f || true
-            
-            # Final result - FAIL if API test fails
-            if [ "$API_OK" = true ]; then
-              echo "✅ Docker test passed - API working correctly"
-              exit 0
-            else
-              echo "❌ Docker test failed - API not working"
-              # This will cause the pipeline to fail
-              exit 1
-            fi

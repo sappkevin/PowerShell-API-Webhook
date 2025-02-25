@@ -34,7 +34,7 @@ namespace Webhookshell.Services
                 
                 _logger.LogInformation($"Processing script request: {scriptToCheck.Script}");
                 
-                // Fixed bug: Properly extract extension by getting the part after the last dot
+                // Extract extension by getting the part after the last dot
                 string scriptExtension = null;
                 int lastDotIndex = scriptToCheck.Script.LastIndexOf('.');
                 
@@ -54,6 +54,7 @@ namespace Webhookshell.Services
                 // Log the available handlers for debugging
                 _logger.LogInformation($"Available handlers: {string.Join(", ", _options.Handlers.Select(h => h.FileExtension))}");
 
+                // Find the appropriate handler for this script extension
                 ScriptHandler handler = _options
                     .Handlers
                     .Where(script => string.Equals(script.FileExtension, scriptExtension, StringComparison.InvariantCultureIgnoreCase))
@@ -67,56 +68,53 @@ namespace Webhookshell.Services
 
                 _logger.LogInformation($"Found handler for {scriptExtension}, script location: {handler.ScriptsLocation}");
                 
-                // Set the full script path for execution
+                // Extract script filename (removing any path components that might have been included)
                 string scriptName = Path.GetFileName(scriptToCheck.Script);
+                _logger.LogInformation($"Script name: {scriptName}");
                 
-                // Use absolute path handling with multiple fallbacks
-                string scriptPath = null;
-                
-                // Try handler location directly first
-                scriptPath = Path.Combine(handler.ScriptsLocation, scriptName);
-                _logger.LogInformation($"Trying script path: {scriptPath}");
-                
-                if (!File.Exists(scriptPath))
+                // If scriptPath was explicitly provided, use it directly after validation
+                if (!string.IsNullOrEmpty(scriptToCheck.ScriptPath) && File.Exists(scriptToCheck.ScriptPath))
                 {
-                    // Try resolving as an absolute path if handler location is absolute
-                    if (Path.IsPathRooted(handler.ScriptsLocation))
+                    _logger.LogInformation($"Using provided script path: {scriptToCheck.ScriptPath}");
+                    
+                    // But still check that the script name matches
+                    if (!Path.GetFileName(scriptToCheck.ScriptPath).Equals(scriptName, StringComparison.InvariantCultureIgnoreCase))
                     {
-                        scriptPath = Path.Combine(handler.ScriptsLocation, scriptName);
-                        _logger.LogInformation($"Trying absolute path: {scriptPath}");
-                    }
-                    else
-                    {
-                        // Try as relative to application directory
-                        string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                        scriptPath = Path.Combine(baseDir, handler.ScriptsLocation, scriptName);
-                        _logger.LogInformation($"Trying relative to app directory: {scriptPath}");
-                        
-                        // If still not found, try removing any ./ prefix
-                        if (!File.Exists(scriptPath) && handler.ScriptsLocation.StartsWith("./"))
-                        {
-                            string noRelativePath = handler.ScriptsLocation.Substring(2);
-                            scriptPath = Path.Combine(baseDir, noRelativePath, scriptName);
-                            _logger.LogInformation($"Trying without ./ prefix: {scriptPath}");
-                        }
-                        
-                        // Last attempt - try at app root level directly
-                        if (!File.Exists(scriptPath))
-                        {
-                            scriptPath = Path.Combine(baseDir, "scripts", "powershell", scriptName);
-                            _logger.LogInformation($"Last attempt at app root: {scriptPath}");
-                        }
+                        result.Errors.Add($"Script name mismatch: Script parameter is '{scriptName}' but provided path contains '{Path.GetFileName(scriptToCheck.ScriptPath)}'");
+                        return result;
                     }
                 }
+                else
+                {
+                    // Path resolution strategy - try multiple approaches
+                    string[] pathsToTry = GetPossibleScriptPaths(handler.ScriptsLocation, scriptName);
+                    
+                    // Log all the paths we're going to try
+                    _logger.LogInformation($"Will try the following paths to locate the script:");
+                    foreach (var path in pathsToTry)
+                    {
+                        _logger.LogInformation($"- {path}");
+                    }
+                    
+                    // Try each path in order until we find one that exists
+                    string foundPath = pathsToTry.FirstOrDefault(File.Exists);
+                    
+                    if (string.IsNullOrEmpty(foundPath))
+                    {
+                        _logger.LogWarning($"Script file not found in any of the attempted paths");
+                        result.Errors.Add($"Script '{scriptToCheck.Script}' not found. Please verify the script exists.");
+                        return result;
+                    }
+                    
+                    // Set the resolved path
+                    scriptToCheck.ScriptPath = foundPath;
+                    _logger.LogInformation($"Successfully resolved script path: {scriptToCheck.ScriptPath}");
+                }
                 
-                // Set the path on the script object
-                scriptToCheck.ScriptPath = scriptPath;
-                _logger.LogInformation($"Final script path: {scriptToCheck.ScriptPath}");
-                
-                // Verify the script exists
+                // Double-check that the script exists at the resolved path
                 if (!File.Exists(scriptToCheck.ScriptPath))
                 {
-                    _logger.LogWarning($"Script file not found: {scriptToCheck.ScriptPath}");
+                    _logger.LogWarning($"Script file not found at resolved path: {scriptToCheck.ScriptPath}");
                     result.Errors.Add($"Script '{scriptToCheck.Script}' not found at path '{scriptToCheck.ScriptPath}'. Please verify the script exists.");
                     return result;
                 }
@@ -131,6 +129,47 @@ namespace Webhookshell.Services
                 result.Errors.Add($"An error occurred while processing the script: {ex.Message}");
                 return result;
             }
+        }
+
+        /// <summary>
+        /// Creates an array of possible script paths to try in order of most likely to work
+        /// </summary>
+        private string[] GetPossibleScriptPaths(string handlerScriptsLocation, string scriptName)
+        {
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string currentDir = Directory.GetCurrentDirectory();
+            
+            // Generate multiple possible paths to try in sequence
+            return new[]
+            {
+                // 1. If handler location is absolute, try it directly
+                Path.IsPathRooted(handlerScriptsLocation) 
+                    ? Path.Combine(handlerScriptsLocation, scriptName) 
+                    : null,
+                
+                // 2. Relative to the specified scripts location
+                Path.Combine(handlerScriptsLocation, scriptName),
+                
+                // 3. Relative to application base directory
+                Path.Combine(baseDir, handlerScriptsLocation, scriptName),
+                
+                // 4. Without "./" prefix if it exists
+                handlerScriptsLocation.StartsWith("./")
+                    ? Path.Combine(baseDir, handlerScriptsLocation.Substring(2), scriptName)
+                    : null,
+                
+                // 5. Relative to current directory
+                Path.Combine(currentDir, handlerScriptsLocation, scriptName),
+                
+                // 6. Standard path relative to application for container environments
+                Path.Combine(baseDir, "scripts", Path.GetExtension(scriptName)?.TrimStart('.') ?? "powershell", scriptName),
+                
+                // 7. Fallback for Docker/container standard paths
+                Path.Combine("/app/scripts", Path.GetExtension(scriptName)?.TrimStart('.') ?? "powershell", scriptName)
+            }
+            .Where(path => !string.IsNullOrEmpty(path)) // Filter out any null entries
+            .Distinct() // Remove duplicates
+            .ToArray();
         }
     }
 }

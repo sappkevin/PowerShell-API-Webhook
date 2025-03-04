@@ -146,6 +146,7 @@ jobs:
           - Update appsettings.json with your webhook configurations
           - Ensure proper permissions for script execution
           - Configure IP allow lists if needed
+          
   performance-testing:
     needs: [test, build-and-release]
     if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
@@ -154,11 +155,19 @@ jobs:
       concurrentUsers: '50'
       testDuration: '5'
       apiUrl: 'http://localhost:5000'
+
+  docker-build-and-test:
+    needs: [test, build-and-release]
+    if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
+    uses: ./.github/workflows/docker-multi-arch-build.yml
+    with:
+      push_images: false  # Just build and test, don't push yet
+
   docker-deploy:
-    needs: [build-and-release]
+    needs: [build-and-release, docker-build-and-test]  
     permissions:
       contents: read
-      packages: write  # Add this to grant write permissions for packages
+      packages: write
     if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
     uses: ./.github/workflows/docker-deploy.yml
     with:

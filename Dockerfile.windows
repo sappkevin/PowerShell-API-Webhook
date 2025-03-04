@@ -4,15 +4,17 @@ WORKDIR /app
 EXPOSE 80
 EXPOSE 443
 
-# Install PowerShell Core (pwsh) using CMD instead of PowerShell
-SHELL ["cmd", "/S", "/C"]
-RUN curl -SL --output PowerShell.msi https://github.com/PowerShell/PowerShell/releases/download/v7.4.1/PowerShell-7.4.1-win-x64.msi \
-    && msiexec.exe /i PowerShell.msi /quiet /norestart \
-    && del PowerShell.msi \
-    && setx PATH "%PATH%;C:\Program Files\PowerShell\7"
-
-# Now switch to PowerShell for subsequent commands
+# Install PowerShell Core using PowerShell commands
+# Windows Server Core already has PowerShell available
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+# Download and install PowerShell Core
+RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
+    Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/download/v7.4.1/PowerShell-7.4.1-win-x64.msi" -OutFile PowerShell.msi; \
+    Start-Process -FilePath msiexec.exe -ArgumentList '/i', 'PowerShell.msi', '/quiet', '/norestart' -Wait; \
+    Remove-Item -Path PowerShell.msi; \
+    $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine'); \
+    Write-Host "PowerShell Core installed successfully"
 
 # Build container image
 FROM mcr.microsoft.com/dotnet/sdk:8.0-windowsservercore-ltsc2022 AS build

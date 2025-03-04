@@ -13,6 +13,13 @@ on:
       - 'src/**'
       - 'Dockerfile.*'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      push_images:
+        description: 'Whether to push the images to registry'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build-linux:
@@ -29,7 +36,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile.linux
-          push: false
+          push: ${{ inputs.push_images }}
           tags: webhookshell:test-linux
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -65,26 +72,67 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        
-      - name: Build Windows image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.windows
-          push: false
-          tags: webhookshell:test-windows
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
       
+      # Set up Docker
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+      
+      # Update the Dockerfile.windows content
+      - name: Update Dockerfile.windows
+        shell: powershell
+        run: |
+          # Update the content of the Dockerfile.windows
+          $content = @'
+          # Use Windows Server Core 2022 with .NET 8.0 runtime
+          FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS base
+          WORKDIR /app
+          EXPOSE 80
+          EXPOSE 443
+
+          # Install PowerShell Core using PowerShell commands
+          SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+          # Download and install PowerShell Core
+          RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
+              Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/download/v7.4.1/PowerShell-7.4.1-win-x64.msi" -OutFile PowerShell.msi; \
+              Start-Process -FilePath msiexec.exe -ArgumentList '/i', 'PowerShell.msi', '/quiet', '/norestart' -Wait; \
+              Remove-Item -Path PowerShell.msi; \
+              $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine'); \
+              Write-Host "PowerShell Core installed successfully"
+
+          # Build container image
+          FROM mcr.microsoft.com/dotnet/sdk:8.0-windowsservercore-ltsc2022 AS build
+          WORKDIR /src
+
+          # Copy csproj and restore dependencies
+          COPY ["src/Webhookshell.csproj", "src/"]
+          RUN dotnet restore "src/Webhookshell.csproj"
+
+          # Copy everything else and build
+          COPY . .
+          WORKDIR "/src"
+          RUN dotnet publish "src/Webhookshell.csproj" -c Release -o /app/publish /p:UseAppHost=true
+
+          # Final image
+          FROM base AS final
+          WORKDIR /app
+          COPY --from=build /app/publish .
+          ENTRYPOINT ["dotnet", "Webhookshell.dll"]
+          '@
+          Set-Content -Path "Dockerfile.windows" -Value $content
+      
+      # Build the Windows image
+      - name: Build Windows image
+        shell: powershell
+        run: |
+          docker build -t webhookshell:test-windows -f Dockerfile.windows .
+      
+      # Test the Windows image
       - name: Test Windows image
         shell: powershell
         run: |
-          # List the image
-          docker image ls | Select-String webhookshell
-          
           # Run a container to test the image
           docker run -d --name test-webhookshell -p 8080:80 webhookshell:test-windows
           
@@ -92,16 +140,22 @@ jobs:
           Start-Sleep -Seconds 20
           
           # Test the health endpoint
-          $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -ErrorAction SilentlyContinue
-          Write-Host "Response: $($response.Content)"
-          
-          if ($response.Content -match "Healthy") {
-            Write-Host "✅ Health endpoint test passed"
-          } else {
-            Write-Host "❌ Health endpoint test failed"
+          try {
+            $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -ErrorAction Stop
+            Write-Host "Response: $($response.Content)"
+            
+            if ($response.Content -match "Healthy") {
+              Write-Host "✅ Health endpoint test passed"
+            } else {
+              Write-Host "❌ Health endpoint test failed"
+              docker logs test-webhookshell
+              exit 1
+            }
+          } catch {
+            Write-Host "❌ Health endpoint test failed: $_"
             docker logs test-webhookshell
             exit 1
+          } finally {
+            # Clean up
+            docker rm -f test-webhookshell
           }
-          
-          # Clean up
-          docker rm -f test-webhookshell

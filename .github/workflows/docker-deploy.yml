@@ -9,6 +9,17 @@ on:
         description: 'Version tag for the Docker image (e.g., v1.0.0)'
         required: true
         default: 'latest'
+  workflow_call:
+    inputs:
+      version_tag:
+        description: 'Version tag for the Docker image'
+        required: true
+        type: string
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
 
 jobs:
   docker-build-and-push:

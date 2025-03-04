@@ -14,7 +14,7 @@ on:
       apiUrl:
         description: 'API URL to test (defaults to local service)'
         required: false
-        default: 'http://localhost:8080'
+        default: 'http://localhost:80'
   pull_request:
     types: [labeled]
   workflow_call:
@@ -30,7 +30,7 @@ on:
       apiUrl:
         type: string
         required: false
-        default: 'http://localhost:8080'
+        default: 'http://localhost:80'
 
 jobs:
   performance-test:
@@ -55,16 +55,22 @@ jobs:
       with:
         dotnet-version: '8.0.x'
       
-    - name: Start API Service for Testing
+    - name: Build and Start Docker Container for Testing
       run: |
-        dotnet restore
-        dotnet build --configuration Release
-        dotnet publish src/Webhookshell.csproj -c Release -o ./publish
-        cd ./publish
-        chmod +rwx ./scripts/powershell/health-check-script.ps1
-        dotnet Webhookshell.dll &
-        echo "Waiting for API to start..."
-        sleep 10
+          # Build the Docker image 
+          docker build -t webhookshell:test -f Dockerfile.windows .
+          
+          # Run the container, exposing port 80 to host port 80
+          docker run -d --name test-webhookshell -p 80:80 webhookshell:test
+          
+          # Wait for container to initialize
+          echo "Waiting for container to start..."
+          sleep 30
+          
+          # Verify container is running and health endpoint is accessible
+          docker ps
+          docker logs test-webhookshell
+          curl -v http://localhost:80/health || echo "Health check failed"
       
     - name: Copy load testing script
       run: |
@@ -89,7 +95,7 @@ jobs:
 
         def main():
             parser = argparse.ArgumentParser(description="WebhookShell API Load Tester")
-            parser.add_argument("--api-url", default="http://localhost:8080", help="API URL to test")
+            parser.add_argument("--api-url", default="http://localhost:80", help="API URL to test")
             parser.add_argument("--api-key", default="24ffc5be-7dd8-479f-898e-27169bf23e7f", help="API key for authentication")
             parser.add_argument("--concurrent-users", type=int, default=50, help="Number of concurrent users")
             parser.add_argument("--duration", type=int, default=5, help="Test duration in minutes")
@@ -344,9 +350,9 @@ jobs:
                             avg_latency = statistics.mean(latencies_ms)
                             p95_latency = sorted(latencies_ms)[int(len(latencies_ms) * 0.95)]
                             
-                            f.write(f"| {scenario} | {data['success']} | {data['fail']} | {rps:.2f} | {avg_latency:.2f} | {p95_latency:.2f} |\n")
+                            f.write(f"| {scenario}  |     {data['success']}    |     {data['fail']}     |     {rps:.2f}     |     {avg_latency:.2f}     |     {p95_latency:.2f}     |\n")
                         else:
-                            f.write(f"| {scenario} | 0 | 0 | 0 | N/A | N/A |\n")
+                            f.write(f"| {scenario}  |     0     |     0     |     0     |     N/A     |     N/A    |\n")
                 
                 console.print(f"[bold green]Load test completed. Results saved to {report_file}[/bold green]")
 
@@ -360,7 +366,7 @@ jobs:
             chmod +rwx performance_tests/reports
             chmod +rwx performance_tests/webhook_load_tester.py
             cd performance_tests
-            python webhook_load_tester.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:8080' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
+            python webhook_load_tester.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:80' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
             
     - name: Upload Test Reports
       uses: actions/upload-artifact@v4

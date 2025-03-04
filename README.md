@@ -20,6 +20,11 @@ Cross-Platform .NET-based PowerShell API Webhook for turning PowerShell Scripts 
 - Script execution timeout controls
 - Fixed issues from the original codebase (improved performance and stability)
 
+## TODO :
+- Add Hangfire support for background processing jobs [hangfire](https://github.com/HangfireIO/Hangfire)
+- Add more testing to make sure that API handles high traffic
+- Create Docker container
+
 ## 📦 Build & Deploy
 
 ### Build Locally:

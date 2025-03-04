@@ -3,14 +3,14 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <RuntimeIdentifiers>win-x64;linux-x64;linux-musl-x64</RuntimeIdentifiers>
+    <RuntimeIdentifierGraphPath>$(DotNetRuntimeIdentifierGraphPath)</RuntimeIdentifierGraphPath>
+    <EnableLegacyRIDs>true</EnableLegacyRIDs>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
     <Version>1.1.0</Version>
     <Authors>sappkevin</Authors>
     <Company>sappkevin</Company>
     <Description>PowerShell API Webhook for executing scripts via HTTP endpoints with Hangfire background processing</Description>
-    <RuntimeIdentifierGraphPath>$(DotNetRuntimeIdentifierGraphPath)</RuntimeIdentifierGraphPath>
-    <EnableLegacyRIDs>true</EnableLegacyRIDs>
   </PropertyGroup>
 
   <ItemGroup>

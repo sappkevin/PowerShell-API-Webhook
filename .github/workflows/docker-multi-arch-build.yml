@@ -1,0 +1,107 @@
+name: Docker Multi-Architecture Build
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'Dockerfile.*'
+      - '.github/workflows/docker-multi-arch-build.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'Dockerfile.*'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Build Linux image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.linux
+          push: false
+          tags: webhookshell:test-linux
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Test Linux image
+        run: |
+          # Pull the image
+          docker image ls | grep webhookshell
+          
+          # Run a container to test the image
+          docker run -d --name test-webhookshell -p 8080:80 webhookshell:test-linux
+          
+          # Wait for the container to start
+          sleep 10
+          
+          # Test the health endpoint
+          HEALTH_RESPONSE=$(curl -s http://localhost:8080/health || echo "FAILED")
+          echo "Health response: $HEALTH_RESPONSE"
+          
+          if [[ "$HEALTH_RESPONSE" == *"Healthy"* ]]; then
+            echo "✅ Health endpoint test passed"
+          else
+            echo "❌ Health endpoint test failed"
+            docker logs test-webhookshell
+            exit 1
+          fi
+          
+          # Clean up
+          docker rm -f test-webhookshell
+  
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Build Windows image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.windows
+          push: false
+          tags: webhookshell:test-windows
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Test Windows image
+        shell: powershell
+        run: |
+          # List the image
+          docker image ls | Select-String webhookshell
+          
+          # Run a container to test the image
+          docker run -d --name test-webhookshell -p 8080:80 webhookshell:test-windows
+          
+          # Wait for the container to start
+          Start-Sleep -Seconds 20
+          
+          # Test the health endpoint
+          $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -ErrorAction SilentlyContinue
+          Write-Host "Response: $($response.Content)"
+          
+          if ($response.Content -match "Healthy") {
+            Write-Host "✅ Health endpoint test passed"
+          } else {
+            Write-Host "❌ Health endpoint test failed"
+            docker logs test-webhookshell
+            exit 1
+          }
+          
+          # Clean up
+          docker rm -f test-webhookshell

@@ -1,0 +1,106 @@
+name: Docker Build and Deploy Image
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version tag for the Docker image (e.g., v1.0.0)'
+        required: true
+        default: 'latest'
+
+jobs:
+  docker-build-and-push:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set version variables
+        id: version
+        run: |
+          # If triggered by release, use the release tag
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            VERSION="${VERSION#v}"  # Remove 'v' prefix if present
+          else
+            # If manually triggered, use the provided version tag
+            VERSION="${{ github.event.inputs.version_tag }}"
+            VERSION="${VERSION#v}"  # Remove 'v' prefix if present
+          fi
+          
+          # Set both versioned and latest tags
+          DOCKER_TAGS="sappkevin/webhookshell:${VERSION},sappkevin/webhookshell:latest"
+          
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "DOCKER_TAGS=${DOCKER_TAGS}" >> $GITHUB_ENV
+          echo "Version: ${VERSION}"
+          echo "Docker tags: ${DOCKER_TAGS}"
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      # Build and push Linux image
+      - name: Build and push Linux image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.linux
+          push: true
+          tags: sappkevin/webhookshell:${{ env.VERSION }}-linux,sappkevin/webhookshell:latest-linux
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ env.VERSION }}
+      
+      # Build and push Windows image
+      - name: Build and push Windows image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.windows
+          push: true
+          tags: sappkevin/webhookshell:${{ env.VERSION }}-windows,sappkevin/webhookshell:latest-windows
+          platforms: windows/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ env.VERSION }}
+      
+      # Create and push multi-platform manifest
+      - name: Create and push Docker manifest
+        run: |
+          docker manifest create sappkevin/webhookshell:${{ env.VERSION }} \
+            sappkevin/webhookshell:${{ env.VERSION }}-linux \
+            sappkevin/webhookshell:${{ env.VERSION }}-windows
+            
+          docker manifest create sappkevin/webhookshell:latest \
+            sappkevin/webhookshell:latest-linux \
+            sappkevin/webhookshell:latest-windows
+            
+          docker manifest push sappkevin/webhookshell:${{ env.VERSION }}
+          docker manifest push sappkevin/webhookshell:latest
+      
+      - name: Update Docker Hub Description
+        uses: peter-evans/dockerhub-description@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: sappkevin/webhookshell
+          short-description: "PowerShell API Webhook - Execute PowerShell scripts via HTTP"
+          readme-filepath: ./README.md

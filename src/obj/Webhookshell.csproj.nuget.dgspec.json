@@ -5,7 +5,7 @@
   },
   "projects": {
     "/Users/ksapp/Development/PowerShell-API-Webhook/src/Webhookshell.csproj": {
-      "version": "1.0.0",
+      "version": "1.1.0",
       "restore": {
         "projectUniqueName": "/Users/ksapp/Development/PowerShell-API-Webhook/src/Webhookshell.csproj",
         "projectName": "Webhookshell",
@@ -43,6 +43,26 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "Hangfire.AspNetCore": {
+              "target": "Package",
+              "version": "[1.8.10, )"
+            },
+            "Hangfire.Core": {
+              "target": "Package",
+              "version": "[1.8.10, )"
+            },
+            "Hangfire.SqlServer": {
+              "target": "Package",
+              "version": "[1.8.10, )"
+            },
+            "Hangfire.Storage.SQLite": {
+              "target": "Package",
+              "version": "[0.4.1, )"
+            },
+            "Microsoft.AspNetCore.RateLimiting": {
+              "target": "Package",
+              "version": "[7.0.0-rc.2.22476.2, )"
+            },
             "Swashbuckle.AspNetCore": {
               "target": "Package",
               "version": "[6.5.0, )"

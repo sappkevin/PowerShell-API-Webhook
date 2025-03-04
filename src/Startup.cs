@@ -11,6 +11,11 @@ using Microsoft.OpenApi.Models;
 using System;
 using System.IO;
 using System.Reflection;
+using Hangfire;
+using Hangfire.Storage.SQLite;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 namespace Webhookshell
 {
@@ -62,6 +67,80 @@ namespace Webhookshell
                 }
             });
             
+            // Add Rate Limiting if enabled in configuration
+            if (Configuration.GetValue<bool>("Performance:EnableRequestThrottling", false))
+            {
+                services.AddRateLimiter(options =>
+                {
+                    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                    {
+                        return RateLimitPartition.GetFixedWindowLimiter(
+                            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+                            factory: _ => new FixedWindowRateLimiterOptions
+                            {
+                                AutoReplenishment = true,
+                                PermitLimit = Configuration.GetValue<int>("Performance:MaxConcurrentRequests", 100),
+                                QueueLimit = Configuration.GetValue<int>("Performance:RequestQueueLimit", 200),
+                                Window = TimeSpan.FromSeconds(1)
+                            });
+                    });
+
+                    options.OnRejected = async (context, token) =>
+                    {
+                        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                        await context.HttpContext.Response.WriteAsJsonAsync(new
+                        {
+                            Error = "Too many requests. Please try again later.",
+                            RetryAfter = 1 // seconds
+                        }, token);
+                    };
+                });
+            }
+
+            // Configure Hangfire
+            if (Configuration.GetValue<bool>("Hangfire:Enabled", false))
+            {
+                // Choose database provider based on configuration
+                if (Configuration.GetValue<bool>("Hangfire:UseSqlServer", false) && 
+                    !string.IsNullOrEmpty(Configuration.GetConnectionString("HangfireConnection")))
+                {
+                    services.AddHangfire(config => config
+                        .SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
+                        .UseSimpleAssemblyNameTypeSerializer()
+                        .UseRecommendedSerializerSettings()
+                        .UseSqlServerStorage(Configuration.GetConnectionString("HangfireConnection")));
+                }
+                else
+                {
+                    // Use SQLite by default (lightweight, no external dependencies)
+                    var storagePath = Configuration.GetValue<string>("Hangfire:SQLitePath", "Data/hangfire.db");
+                    
+                    // Ensure directory exists
+                    var directory = Path.GetDirectoryName(storagePath);
+                    if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
+                    
+                    services.AddHangfire(config => config
+                        .SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
+                        .UseSimpleAssemblyNameTypeSerializer()
+                        .UseRecommendedSerializerSettings()
+                        .UseSQLiteStorage(storagePath));
+                }
+
+                // Add the Hangfire server
+                services.AddHangfireServer(options =>
+                {
+                    options.WorkerCount = Configuration.GetValue<int>("Hangfire:WorkerCount", Environment.ProcessorCount * 2);
+                    options.Queues = new[] { "default", "critical", "scripts" };
+                });
+
+                // Register Hangfire services
+                services.AddSingleton<IBackgroundJobService, BackgroundJobService>();
+                services.AddSingleton<RecurringJobsService>();
+            }
+            
             // Register services as singletons for better performance in high-traffic scenarios
             services.AddSingleton<IScriptRunnerService, ScriptRunner>();
             services.AddSingleton<IHandlerDispatcher, HandlerDispatcher>();
@@ -104,11 +183,42 @@ namespace Webhookshell
 
             app.UseRouting();
 
+            // Apply rate limiting if enabled
+            if (Configuration.GetValue<bool>("Performance:EnableRequestThrottling", false))
+            {
+                app.UseRateLimiter();
+            }
+
             app.UseAuthorization();
+
+            // Configure Hangfire dashboard and server
+            if (Configuration.GetValue<bool>("Hangfire:Enabled", false))
+            {
+                var dashboardEnabled = Configuration.GetValue<bool>("Hangfire:DashboardEnabled", true);
+                if (dashboardEnabled)
+                {
+                    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+                    {
+                        // In production, you should use proper authorization
+                        Authorization = new[] { new HangfireAuthorizationFilter() }
+                    });
+                }
+                
+                // Configure recurring jobs
+                var recurringJobsService = app.ApplicationServices.GetService<RecurringJobsService>();
+                recurringJobsService?.ConfigureRecurringJobs();
+            }
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+                
+                // Map Hangfire dashboard if enabled
+                if (Configuration.GetValue<bool>("Hangfire:Enabled", false) && 
+                    Configuration.GetValue<bool>("Hangfire:DashboardEnabled", true))
+                {
+                    endpoints.MapHangfireDashboard();
+                }
             });
         }
     }

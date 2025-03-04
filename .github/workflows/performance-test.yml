@@ -61,7 +61,7 @@ jobs:
         dotnet build --configuration Release
         dotnet publish src/Webhookshell.csproj -c Release -o ./publish
         cd ./publish
-        chmod +x ./scripts/powershell/health-check-script.ps1
+        chmod +rwx ./scripts/powershell/health-check-script.ps1
         dotnet Webhookshell.dll &
         echo "Waiting for API to start..."
         sleep 10
@@ -69,6 +69,7 @@ jobs:
     - name: Copy load testing script
       run: |
         mkdir -p performance_tests
+        chmod +rwx performance_tests
         cat > performance_tests/webhook_load_tester.py << 'EOL'
         #!/usr/bin/env python3
         import argparse
@@ -346,11 +347,12 @@ jobs:
             if __name__ == "__main__":
                 main()
             EOL
-                    chmod +x performance_tests/webhook_load_tester.py
             
             - name: Run Performance Tests
             run: |
                 mkdir -p performance_tests/reports
+                chmod +rwx performance_tests/reports
+                chmod +rwx performance_tests/webhook_load_tester.py
                 cd performance_tests
                 python webhook_load_tester.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:5000' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
             
@@ -359,7 +361,8 @@ jobs:
       with:
         name: performance-test-reports
         path: performance_tests/reports/
-                
+        if-no-files-found: error  # Change to error to catch issues
+
     - name: Create PR Comment with Test Results
       if: github.event_name == 'pull_request'
       uses: actions/github-script@v6

@@ -2,13 +2,11 @@ name: Docker Multi-Architecture Build
 
 on:
   push:
-    branches: [ main ]
     paths:
       - 'src/**'
       - 'Dockerfile.*'
       - '.github/workflows/docker-multi-arch-build.yml'
   pull_request:
-    branches: [ main ]
     paths:
       - 'src/**'
       - 'Dockerfile.*'

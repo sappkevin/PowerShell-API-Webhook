@@ -346,15 +346,15 @@ jobs:
 
             if __name__ == "__main__":
                 main()
-            EOL
+        EOL
             
-            - name: Run Performance Tests
-            run: |
-                mkdir -p performance_tests/reports
-                chmod +rwx performance_tests/reports
-                chmod +rwx performance_tests/webhook_load_tester.py
-                cd performance_tests
-                python webhook_load_tester.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:5000' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
+    - name: Run Performance Tests
+      run: |
+            mkdir -p performance_tests/reports
+            chmod +rwx performance_tests/reports
+            chmod +rwx performance_tests/webhook_load_tester.py
+            cd performance_tests
+            python webhook_load_tester.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:5000' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
             
     - name: Upload Test Reports
       uses: actions/upload-artifact@v4

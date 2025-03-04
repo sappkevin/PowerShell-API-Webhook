@@ -19,29 +19,22 @@ jobs:
         
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
         
       - name: Build Linux image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile.linux
-          push: ${{ inputs.push_images }}
+          load: true
           tags: webhookshell:test-linux
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
       
       - name: Test Linux image
         run: |
-          # Pull the image
-          docker image ls | grep webhookshell
-          
-          # Run a container to test the image
+          docker images | grep webhookshell
           docker run -d --name test-webhookshell -p 8080:80 webhookshell:test-linux
-          
-          # Wait for the container to start
           sleep 10
-          
-          # Test the health endpoint
           HEALTH_RESPONSE=$(curl -s http://localhost:8080/health || echo "FAILED")
           echo "Health response: $HEALTH_RESPONSE"
           
@@ -53,7 +46,6 @@ jobs:
             exit 1
           fi
           
-          # Clean up
           docker rm -f test-webhookshell
   
   build-windows:
@@ -66,102 +58,45 @@ jobs:
       - name: Set up Docker
         uses: docker/setup-buildx-action@v3
         with:
-          install: true
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-            config: |
-              [worker.oci]
-                platforms = [
-                  "windows/amd64"
-                ]
-              [worker]
-                platformoperatingsystems = ["windows"]
-
-      - name: Check Windows Version for build runner
+          driver: docker
+      - name: Prepare Dockerfile for Windows
         shell: powershell
         run: |
-                  $OSVersion = (Get-CimInstance Win32_OperatingSystem).Version
-                  Write-Host "Windows Version: $OSVersion"
-                  
-                  # Specific handling for different Windows versions
-                  switch -Wildcard ($OSVersion) {
-                    "10.0.20348*" { 
-                      Write-Host "Windows Server 2022" 
-                      # Add specific build steps for Server 2022
-                    }
-                    "10.0.19044*" { 
-                      Write-Host "Windows Server 2022" 
-                      # Add alternative build steps
-                    }
-                    default { 
-                      Write-Error "Unsupported Windows version"
-                      exit 1 
-                    }
-                  }
-      
-      # Update the Dockerfile.windows content
-      - name: Update Dockerfile.windows
-        shell: powershell
-        run: |
-          # Update the content of the Dockerfile.windows
-          $content = @'
-          # Use Windows Server Core 2022 with .NET 8.0 runtime
+          @"
           FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS base
           WORKDIR /app
           EXPOSE 80
           EXPOSE 443
 
-          # Install PowerShell Core using PowerShell commands
           SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-          # Download and install PowerShell Core
-          RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
-              Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/download/v7.4.1/PowerShell-7.4.1-win-x64.msi" -OutFile PowerShell.msi; \
-              Start-Process -FilePath msiexec.exe -ArgumentList '/i', 'PowerShell.msi', '/quiet', '/norestart' -Wait; \
-              Remove-Item -Path PowerShell.msi; \
-              $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine'); \
-              Write-Host "PowerShell Core installed successfully"
-
-          # Build container image
           FROM mcr.microsoft.com/dotnet/sdk:8.0-windowsservercore-ltsc2022 AS build
           WORKDIR /src
 
-          # Copy csproj and restore dependencies
           COPY ["src/Webhookshell.csproj", "src/"]
           RUN dotnet restore "src/Webhookshell.csproj"
 
-          # Copy everything else and build
           COPY . .
           WORKDIR "/src"
           RUN dotnet publish "src/Webhookshell.csproj" -c Release -o /app/publish /p:UseAppHost=true
 
-          # Final image
           FROM base AS final
           WORKDIR /app
           COPY --from=build /app/publish .
           ENTRYPOINT ["dotnet", "Webhookshell.dll"]
-          '@
-          Set-Content -Path "Dockerfile.windows" -Value $content
+          "@ | Set-Content -Path Dockerfile.windows
       
-      # Build the Windows image
       - name: Build Windows image
         shell: powershell
         run: |
           docker build -t webhookshell:test-windows -f Dockerfile.windows .
       
-      # Test the Windows image
       - name: Test Windows image
         shell: powershell
         run: |
-          # Run a container to test the image
           docker run -d --name test-webhookshell -p 8080:80 webhookshell:test-windows
-          
-          # Wait for the container to start
           Start-Sleep -Seconds 20
           
-          # Test the health endpoint
           try {
             $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -ErrorAction Stop
             Write-Host "Response: $($response.Content)"
@@ -178,6 +113,5 @@ jobs:
             docker logs test-webhookshell
             exit 1
           } finally {
-            # Clean up
             docker rm -f test-webhookshell
           }

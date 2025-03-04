@@ -157,7 +157,7 @@ jobs:
       apiUrl: 'http://localhost:5000'
 
   docker-build-and-test:
-    needs: [test, build-and-release]
+    needs: [test, build-and-release,performance-testing]
     if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
     uses: ./.github/workflows/docker-multi-arch-build.yml
     with:

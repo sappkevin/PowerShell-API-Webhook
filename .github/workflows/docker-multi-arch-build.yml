@@ -68,6 +68,39 @@ jobs:
         with:
           install: true
       
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+            config: |
+              [worker.oci]
+                platforms = [
+                  "windows/amd64"
+                ]
+              [worker]
+                platformoperatingsystems = ["windows"]
+
+      - name: Check Windows Version for build runner
+        shell: powershell
+        run: |
+                  $OSVersion = (Get-CimInstance Win32_OperatingSystem).Version
+                  Write-Host "Windows Version: $OSVersion"
+                  
+                  # Specific handling for different Windows versions
+                  switch -Wildcard ($OSVersion) {
+                    "10.0.20348*" { 
+                      Write-Host "Windows Server 2022" 
+                      # Add specific build steps for Server 2022
+                    }
+                    "10.0.19044*" { 
+                      Write-Host "Windows Server 2022" 
+                      # Add alternative build steps
+                    }
+                    default { 
+                      Write-Error "Unsupported Windows version"
+                      exit 1 
+                    }
+                  }
+      
       # Update the Dockerfile.windows content
       - name: Update Dockerfile.windows
         shell: powershell

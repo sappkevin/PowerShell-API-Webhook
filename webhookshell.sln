@@ -5,8 +5,6 @@ VisualStudioVersion = 17.5.001.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Webhookshell", ".\src\Webhookshell.csproj", "{A00D04C3-FB24-47E9-9805-3644A82A2053}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Webhookshell.Tests.Performance", "Webhookshell.Tests.Performance\Webhookshell.Tests.Performance.csproj", "{F9365C1D-1D77-44C7-BA4D-98DBFCAB5983}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

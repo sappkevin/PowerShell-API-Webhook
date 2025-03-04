@@ -156,6 +156,9 @@ jobs:
       apiUrl: 'http://localhost:5000'
   docker-deploy:
     needs: [build-and-release]
+    permissions:
+      contents: read
+      packages: write  # Add this to grant write permissions for packages
     if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
     uses: ./.github/workflows/docker-deploy.yml
     with:

@@ -4,16 +4,15 @@ WORKDIR /app
 EXPOSE 80
 EXPOSE 443
 
-# First use CMD shell
-SHELL ["cmd", "/S", "/C"]
+# First use PowerShell 5.1
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-# Set PowerShell execution using full path and then install PowerShell Core
-RUN powershell.exe -Command "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; \
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
+# Install PowerShell Core
+RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
     Invoke-WebRequest -Uri 'https://github.com/PowerShell/PowerShell/releases/download/v7.4.1/PowerShell-7.4.1-win-x64.msi' -OutFile PowerShell.msi; \
     Start-Process -FilePath msiexec.exe -ArgumentList '/i', 'PowerShell.msi', '/quiet', '/norestart' -Wait; \
     Remove-Item -Path PowerShell.msi; \
-    Write-Host 'PowerShell Core installed successfully'"
+    Write-Host 'PowerShell Core installed successfully'
 
 # After PowerShell Core is installed, we can switch to it
 SHELL ["pwsh", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]

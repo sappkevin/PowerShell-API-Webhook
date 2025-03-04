@@ -59,7 +59,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           driver: docker
-          
+
       - name: Prepare Dockerfile for Windows
         shell: powershell
         run: |
@@ -95,42 +95,36 @@ jobs:
       - name: Test Windows docker image
         shell: powershell
         run: |
+        
             docker run -d --name test-webhookshell -p 8080:80 webhookshell:test-windows
-            
-            # Wait for container to fully start
-            Start-Sleep -Seconds 30
-            
-            # Try multiple ways to connect
+            Start-Sleep -Seconds 60  # Longer startup time
+
+            # Print container logs
+            Write-Host "Container Logs:"
+            docker logs test-webhookshell
+
+            # Try to get detailed connection information
+            Write-Host "Container Network Information:"
+            docker inspect test-webhookshell
+
+            # Attempt web request with more verbose output
             try {
-                # Try localhost
-                $response1 = Invoke-WebRequest -Uri "http://localhost:8080/health" -ErrorAction Stop
-                Write-Host "Localhost Response: $($response1.Content)"
-                
-                # Try 127.0.0.1
-                $response2 = Invoke-WebRequest -Uri "http://127.0.0.1:8080/health" -ErrorAction Stop
-                Write-Host "127.0.0.1 Response: $($response2.Content)"
-                
-                # Try container IP
-                $containerIp = (docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' test-webhookshell)
-                $response3 = Invoke-WebRequest -Uri "http://$containerIp/health" -ErrorAction Stop
-                Write-Host "Container IP Response: $($response3.Content)"
-                
-                # Check for "Healthy" in any response
-                if (
-                    ($response1.Content -match "Healthy") -or 
-                    ($response2.Content -match "Healthy") -or 
-                    ($response3.Content -match "Healthy")
-                ) {
-                    Write-Host "✅ Health endpoint test passed"
-                } else {
-                    Write-Host "❌ Health endpoint test failed: No 'Healthy' response"
-                    docker logs test-webhookshell
-                    exit 1
-                }
+                $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -Verbose -ErrorAction Stop
+                Write-Host "Full Response:"
+                $response | Format-List *
             } catch {
-                Write-Host "❌ Health endpoint test failed: $_"
+                Write-Host "Connection Error Details:"
+                $_ | Format-List *
+            }            
+            # Check for "Healthy" in any response
+            if ($response.Content -match "Healthy") {
+                Write-Host "✅ Health endpoint test passed"
+            } else {
+                Write-Host "❌ Health endpoint test failed: No 'Healthy' response"
                 docker logs test-webhookshell
                 exit 1
-            } finally {
-                docker rm -f test-webhookshell
             }
+            
+            #Cleanup
+            docker rm -f test-webhookshell
+            

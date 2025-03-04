@@ -1,7 +1,6 @@
 # PowerShell API WebHookShell
 
 [![.NET Webhook API Build and Release](https://github.com/sappkevin/PowerShell-API-Webhook/actions/workflows/main.yml/badge.svg)](https://github.com/sappkevin/PowerShell-API-Webhook/actions/workflows/main.yml)
-[![Docker Multi-Architecture Build](https://github.com/sappkevin/PowerShell-API-Webhook/actions/workflows/docker-multi-arch-build.yml/badge.svg)](https://github.com/sappkevin/PowerShell-API-Webhook/actions/workflows/docker-multi-arch-build.yml)
 [![Docker Hub](https://img.shields.io/docker/pulls/sappkevin/webhookshell.svg)](https://hub.docker.com/r/sappkevin/webhookshell)
 
 # PowerShell-API-Webhook

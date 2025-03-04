@@ -81,6 +81,10 @@
           "warn": true,
           "downloadDependencies": [
             {
+              "name": "Microsoft.AspNetCore.App.Runtime.linux-musl-x64",
+              "version": "[8.0.13, 8.0.13]"
+            },
+            {
               "name": "Microsoft.AspNetCore.App.Runtime.linux-x64",
               "version": "[8.0.13, 8.0.13]"
             },
@@ -89,11 +93,19 @@
               "version": "[8.0.13, 8.0.13]"
             },
             {
+              "name": "Microsoft.NETCore.App.Host.linux-musl-x64",
+              "version": "[8.0.13, 8.0.13]"
+            },
+            {
               "name": "Microsoft.NETCore.App.Host.linux-x64",
               "version": "[8.0.13, 8.0.13]"
             },
             {
               "name": "Microsoft.NETCore.App.Host.win-x64",
+              "version": "[8.0.13, 8.0.13]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Runtime.linux-musl-x64",
               "version": "[8.0.13, 8.0.13]"
             },
             {
@@ -117,6 +129,9 @@
         }
       },
       "runtimes": {
+        "linux-musl-x64": {
+          "#import": []
+        },
         "linux-x64": {
           "#import": []
         },

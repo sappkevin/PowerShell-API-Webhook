@@ -34,7 +34,7 @@ on:
 
 jobs:
   performance-test:
-    if: ${{ github.event.label.name == 'performance-test' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event.label.name == 'performance-test' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call' }}
     runs-on: ubuntu-latest
     
     steps:

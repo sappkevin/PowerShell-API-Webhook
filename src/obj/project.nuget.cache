@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "PJ9vPiXDDig=",
+  "dgSpecHash": "wO/5Hw5vEyA=",
   "success": true,
   "projectFilePath": "/Users/ksapp/Development/PowerShell-API-Webhook/src/Webhookshell.csproj",
   "expectedPackageFiles": [
@@ -33,10 +33,13 @@
     "/Users/ksapp/.nuget/packages/system.threading.ratelimiting/7.0.0-rc.2.22472.3/system.threading.ratelimiting.7.0.0-rc.2.22472.3.nupkg.sha512",
     "/Users/ksapp/.nuget/packages/microsoft.netcore.app.runtime.win-x64/8.0.13/microsoft.netcore.app.runtime.win-x64.8.0.13.nupkg.sha512",
     "/Users/ksapp/.nuget/packages/microsoft.netcore.app.runtime.linux-x64/8.0.13/microsoft.netcore.app.runtime.linux-x64.8.0.13.nupkg.sha512",
+    "/Users/ksapp/.nuget/packages/microsoft.netcore.app.runtime.linux-musl-x64/8.0.13/microsoft.netcore.app.runtime.linux-musl-x64.8.0.13.nupkg.sha512",
     "/Users/ksapp/.nuget/packages/microsoft.aspnetcore.app.runtime.win-x64/8.0.13/microsoft.aspnetcore.app.runtime.win-x64.8.0.13.nupkg.sha512",
     "/Users/ksapp/.nuget/packages/microsoft.aspnetcore.app.runtime.linux-x64/8.0.13/microsoft.aspnetcore.app.runtime.linux-x64.8.0.13.nupkg.sha512",
+    "/Users/ksapp/.nuget/packages/microsoft.aspnetcore.app.runtime.linux-musl-x64/8.0.13/microsoft.aspnetcore.app.runtime.linux-musl-x64.8.0.13.nupkg.sha512",
     "/Users/ksapp/.nuget/packages/microsoft.netcore.app.host.win-x64/8.0.13/microsoft.netcore.app.host.win-x64.8.0.13.nupkg.sha512",
-    "/Users/ksapp/.nuget/packages/microsoft.netcore.app.host.linux-x64/8.0.13/microsoft.netcore.app.host.linux-x64.8.0.13.nupkg.sha512"
+    "/Users/ksapp/.nuget/packages/microsoft.netcore.app.host.linux-x64/8.0.13/microsoft.netcore.app.host.linux-x64.8.0.13.nupkg.sha512",
+    "/Users/ksapp/.nuget/packages/microsoft.netcore.app.host.linux-musl-x64/8.0.13/microsoft.netcore.app.host.linux-musl-x64.8.0.13.nupkg.sha512"
   ],
   "logs": []
 }

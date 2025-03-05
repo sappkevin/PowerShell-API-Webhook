@@ -1,24 +1,47 @@
+# Use Windows Server Core 2022 with .NET 8.0 runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS base
 WORKDIR /app
 EXPOSE 80
 EXPOSE 443
 
+# Set environment variables
+ENV POWERSHELL_VERSION=7.4.7
+
+# Download and install PowerShell
+SHELL ["cmd", "/S", "/C"]
+RUN curl -L -o pwsh.msi https://github.com/PowerShell/PowerShell/releases/download/v${POWERSHELL_VERSION}/PowerShell-${POWERSHELL_VERSION}-win-x64.msi && \
+    start /wait msiexec.exe /i pwsh.msi /quiet /norestart && \
+    del pwsh.msi
+
+# After PowerShell Core is installed, we can switch to it
+SHELL ["pwsh", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+# Verify PowerShell installation
+RUN $PSVersionTable
+
+# Build container image
 FROM mcr.microsoft.com/dotnet/sdk:8.0-windowsservercore-ltsc2022 AS build
 WORKDIR /src
 
-# use CMD shell
-SHELL ["cmd", "/S", "/C"]
+# Copy csproj and restore dependencies
 COPY ["src/Webhookshell.csproj", "src/"]
 RUN dotnet restore "src/Webhookshell.csproj"
 
+# Copy everything else and build
 COPY . .
 WORKDIR "/src"
 RUN dotnet publish "src/Webhookshell.csproj" -c Release -o /app/publish /p:UseAppHost=true
 
+# Final image
 FROM base AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 
+# Create scripts directories
+RUN mkdir -Force -Path scripts\powershell; \
+    mkdir -Force -Path scripts\python
+
+# Set environment variables
 ENV ASPNETCORE_URLS=http://+:80
 
 ENTRYPOINT ["dotnet", "Webhookshell.dll"]

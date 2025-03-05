@@ -14,7 +14,7 @@ on:
       apiUrl:
         description: 'API URL to test (defaults to local service)'
         required: false
-        default: 'http://localhost:80'
+        default: 'http://localhost:80/health'
   pull_request:
     types: [labeled]
   workflow_call:
@@ -30,7 +30,7 @@ on:
       apiUrl:
         type: string
         required: false
-        default: 'http://localhost:80'
+        default: 'http://localhost:80/health'
 
 jobs:
   performance-test-linux:
@@ -78,7 +78,7 @@ jobs:
     - name: Run Performance Tests
       run: |
         cd performance_tests
-        python webhook_load_tester_linux.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:80' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
+        python webhook_load_tester_linux.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:80/health' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
             
     - name: Upload Test Reports
       uses: actions/upload-artifact@v4

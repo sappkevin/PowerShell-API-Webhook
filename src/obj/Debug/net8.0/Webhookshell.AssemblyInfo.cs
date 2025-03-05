@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyDescriptionAttribute("PowerShell API Webhook for executing scripts via HTTP endpoints with Hangfire bac" +
     "kground processing")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.1.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.1.0+992b655764c7ae5cbfb2b4f98fff2047f48e04fb")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.1.0+3783d29c6a00d6bd57fd938cd1bddc74009fbcb4")]
 [assembly: System.Reflection.AssemblyProductAttribute("Webhookshell")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Webhookshell")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.1.0.0")]

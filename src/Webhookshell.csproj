@@ -3,6 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <RuntimeIdentifiers>win-x64;linux-x64;linux-musl-x64</RuntimeIdentifiers>
+    <PublishAot>false</PublishAot>
     <RuntimeIdentifierGraphPath>$(DotNetRuntimeIdentifierGraphPath)</RuntimeIdentifierGraphPath>
     <EnableLegacyRIDs>true</EnableLegacyRIDs>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -19,10 +20,15 @@
     <PackageReference Include="Hangfire.Core" Version="1.8.10" />
     <PackageReference Include="Hangfire.SqlServer" Version="1.8.10" />
     <PackageReference Include="Hangfire.Storage.SQLite" Version="0.4.1" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.0" />
     <!-- For Rate Limiting -->
     <PackageReference Include="Microsoft.AspNetCore.RateLimiting" Version="7.0.0-rc.2.22476.2" />
     <!-- Uncomment to add Application Insights support -->
     <!-- <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.22.0" /> -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.Runtime.Loader.UseRidGraph" Value="true" />
   </ItemGroup>
 
   <ItemGroup>

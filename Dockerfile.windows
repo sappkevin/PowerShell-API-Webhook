@@ -12,6 +12,15 @@ RUN powershell.exe -Command "Get-ChildItem Env: | Format-Table -AutoSize"
 # Windows Server Core already has PowerShell available
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
+# Download and install Python3
+RUN powershell -Command "Invoke-WebRequest -Uri https://www.python.org/ftp/python/3.10.11/python-3.10.11-amd64.exe -OutFile python-installer.exe; \
+    Start-Process -FilePath python-installer.exe -ArgumentList '/quiet InstallAllUsers=1 PrependPath=1' -Wait; \
+    Remove-Item python-installer.exe"
+
+RUN python -m ensurepip --upgrade; \
+    python -m pip install --upgrade pip; \
+    pip install aiohttp rich
+
 # Download and install PowerShell Core
 RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
     Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/download/v7.4.1/PowerShell-7.4.1-win-x64.msi" -OutFile PowerShell.msi; \

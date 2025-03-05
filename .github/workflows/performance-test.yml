@@ -35,63 +35,55 @@ on:
 jobs:
   performance-test-linux:
     runs-on: ubuntu-latest
-    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      
+        
     - name: Setup Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
-      
+        
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install aiohttp rich
-      
+        
     - name: Setup .NET 8.0 (for API service)
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.0.x'
-      
+        
     - name: Build and Start Docker Container for Testing
       run: |
-          # Build the Docker image 
-          docker build -t webhookshell:test -f Dockerfile.linux .
-          
-          # Run the container, exposing port 80 to host port 80
-          docker run -d --name test-webhookshell -p 80:80 webhookshell:test
-          
-          # Wait for container to initialize
-          echo "Waiting for container to start..."
-          sleep 30
-          
-          # Verify container is running and health endpoint is accessible
-          docker ps
-          docker logs test-webhookshell
-          curl -v http://localhost:80/health || echo "Health check failed"
+        docker build -t webhookshell:test -f Dockerfile.linux .
+        docker run -d --name test-webhookshell -p 80:80 webhookshell:test
+        echo "Waiting for container to start..."
+        sleep 30
+        docker ps
+        docker logs test-webhookshell
+        curl -v http://localhost:80/health || echo "Health check failed"
+    
+    - name: Debug directory structure
+      run: ls -R
       
     - name: Copy load testing script
       run: |
         mkdir -p performance_tests
-        chmod +rwx performance_tests
-        cp src\scripts\python\webhook_load_tester_linux.py performance_tests\
+        cp /src/scripts/python/webhook_load_tester_linux.py performance_tests/
             
     - name: Run Performance Tests
       run: |
-            mkdir -p performance_tests/reports
-            chmod +rwx performance_tests/reports
-            chmod +rwx performance_tests/webhook_load_tester_linux.py
-            cd performance_tests
-            python webhook_load_tester_linux.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:80' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
+        mkdir -p performance_tests/reports
+        cd performance_tests
+        python webhook_load_tester_linux.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:80' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
             
     - name: Upload Test Reports
       uses: actions/upload-artifact@v4
       with:
-        name: performance-test-reports
+        name: performance-test-reports-linux  # Differentiate from Windows
         path: performance_tests/reports/
-        if-no-files-found: error  # Change to error to catch issues
+        if-no-files-found: error
 
     - name: Create PR Comment with Test Results
       if: github.event_name == 'pull_request'
@@ -101,35 +93,39 @@ jobs:
         script: |
             const fs = require('fs');
             const summaryContent = fs.readFileSync('performance_tests/reports/summary.md', 'utf8');
-            
             github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: summaryContent
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: summaryContent
             });
             
     - name: Display Test Summary for Linux Build
       run: |
-            cat performance_tests/reports/summary.md
+        cat performance_tests/reports/summary.md
+
+    - name: Cleanup Docker Container
+      if: always()
+      run: |
+        docker stop test-webhookshell || true
+        docker rm test-webhookshell || true
 
   performance-test-windows:
     runs-on: windows-latest
-    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      
+        
     - name: Setup Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
-      
+        
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install aiohttp rich
-      
+        
     - name: Setup .NET 8.0 (for API service)
       uses: actions/setup-dotnet@v4
       with:
@@ -137,32 +133,32 @@ jobs:
 
     - name: Build and Start Docker Container for Testing
       run: |
-          docker build -t webhookshellwin:testwindows -f Dockerfile.windows .
-          docker run -d --name test-webhookshell-windows -p 80:80 webhookshellwin:testwindows
-          echo "Waiting for container to start..."
-          powershell -Command "Start-Sleep -Seconds 30"
-          docker ps
-          docker logs test-webhookshell-windows
-          powershell -Command "Invoke-WebRequest -Uri http://localhost:80/health -Verbose" || echo "Health check failed"
+        docker build -t webhookshellwin:testwindows -f Dockerfile.windows .
+        docker run -d --name test-webhookshell-windows -p 80:80 webhookshellwin:testwindows
+        echo "Waiting for container to start..."
+        powershell -Command "Start-Sleep -Seconds 30"
+        docker ps
+        docker logs test-webhookshell-windows
+        powershell -Command "Invoke-WebRequest -Uri http://localhost:80/health -Verbose" || echo "Health check failed"
     
-    - name: Copy load testing script from container
+    - name: Copy load testing script 
       run: |
-            mkdir -p performance_tests
-            copy src\scripts\python\webhook_load_tester_windows.py performance_tests\
-            dir performance_tests  # Verify the file is copied
+        mkdir performance_tests
+        copy src\scripts\python\webhook_load_tester_windows.py performance_tests\
+        dir performance_tests
 
     - name: Run Performance Tests
       run: |
-            mkdir -p performance_tests/reports
-            cd performance_tests
-            python webhook_load_tester_windows.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:80' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
+        mkdir performance_tests\reports
+        cd performance_tests
+        python webhook_load_tester_windows.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:80' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
             
     - name: Upload Test Reports
       uses: actions/upload-artifact@v4
       with:
-        name: performance-test-reports
+        name: performance-test-reports-windows  # Differentiate from Linux
         path: performance_tests/reports/
-        if-no-files-found: error  # Change to error to catch issues
+        if-no-files-found: error
 
     - name: Create PR Comment with Test Results
       if: github.event_name == 'pull_request'
@@ -172,14 +168,19 @@ jobs:
         script: |
             const fs = require('fs');
             const summaryContent = fs.readFileSync('performance_tests/reports/summary-windows.md', 'utf8');
-            
             github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: summaryContent
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: summaryContent
             });
             
     - name: Display Test Summary for Windows Build
       run: |
-            cat performance_tests/reports/summary-windows.md
+        type performance_tests\reports\summary-windows.md
+
+    - name: Cleanup Docker Container
+      if: always()
+      run: |
+        docker stop test-webhookshell-windows || exit 0
+        docker rm test-webhookshell-windows || exit 0

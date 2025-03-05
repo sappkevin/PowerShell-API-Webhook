@@ -47,25 +47,25 @@ class WebhookLoadTester:
         }
     
     async def run_test(self):
-    console.print(f"[bold green]Starting load test against {self.api_url}/health[/bold green]")
-    console.print(f"Concurrent users: {self.concurrent_users}")
-    console.print(f"Test duration: {self.duration_seconds // 60} minutes")
+        console.print(f"[bold green]Starting load test against {self.api_url}/health[/bold green]")
+        console.print(f"Concurrent users: {self.concurrent_users}")
+        console.print(f"Test duration: {self.duration_seconds // 60} minutes")
     
-    # Explicitly disable SSL for HTTP
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
-        with Progress() as progress:
-            get_task = progress.add_task("[cyan]GET API Requests...", total=self.duration_seconds)
-            post_task = progress.add_task("[magenta]POST API Requests...", total=self.duration_seconds)
-            bg_task = progress.add_task("[yellow]Background Job Requests...", total=self.duration_seconds)
-            
-            # Use /health endpoint if that's the target
-            await asyncio.gather(
-                self._run_get_scenario(session, progress, get_task, endpoint=f"{self.api_url}/health"),
-                self._run_post_scenario(session, progress, post_task, endpoint=f"{self.api_url}/health"),
-                self._run_background_job_scenario(session, progress, bg_task, endpoint=f"{self.api_url}/health")
-            )
-    
-    self._generate_report()
+        # Explicitly disable SSL for HTTP
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+            with Progress() as progress:
+                get_task = progress.add_task("[cyan]GET API Requests...", total=self.duration_seconds)
+                post_task = progress.add_task("[magenta]POST API Requests...", total=self.duration_seconds)
+                bg_task = progress.add_task("[yellow]Background Job Requests...", total=self.duration_seconds)
+                
+                # Use /health endpoint if that's the target
+                await asyncio.gather(
+                    self._run_get_scenario(session, progress, get_task, endpoint=f"{self.api_url}/health"),
+                    self._run_post_scenario(session, progress, post_task, endpoint=f"{self.api_url}/health"),
+                    self._run_background_job_scenario(session, progress, bg_task, endpoint=f"{self.api_url}/health")
+                )
+        
+        self._generate_report()
 
     async def _run_get_scenario(self, session, progress, task_id):
         start_time = time.time()

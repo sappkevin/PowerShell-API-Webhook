@@ -53,7 +53,7 @@ WORKDIR /app
 COPY --from=build /app/publish .
 
 # Create scripts directories
-RUN mkdir -p scripts/powershell && mkdir -p scripts/python
+RUN New-Item -ItemType Directory -Path scripts/powershell -Force; New-Item -ItemType Directory -Path scripts/python -Force
 
 # Set environment variables
 ENV ASPNETCORE_URLS=http://+:80

@@ -66,15 +66,18 @@ jobs:
     
     - name: Debug directory structure
       run: ls -R
-      
+
     - name: Copy load testing script
       run: |
         mkdir -p performance_tests
-        cp /src/scripts/python/webhook_load_tester_linux.py performance_tests/
+        chmod +rwx ./performance_tests
+        mkdir -p performance_tests/reports
+        chmod +rwx ./performance_tests/reports
+        cp ./src/scripts/python/webhook_load_tester_linux.py ./performance_tests/
+        chmod +rwx ./performance_tests/webhook_load_tester_linux.py
             
     - name: Run Performance Tests
       run: |
-        mkdir -p performance_tests/reports
         cd performance_tests
         python webhook_load_tester_linux.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:80' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
             
@@ -182,5 +185,5 @@ jobs:
     - name: Cleanup Docker Container
       if: always()
       run: |
-        docker stop test-webhookshell-windows || exit 0
-        docker rm test-webhookshell-windows || exit 0
+        try { docker stop test-webhookshell-windows } catch { exit 0 }
+        try { docker rm test-webhookshell-windows } catch { exit 0 }

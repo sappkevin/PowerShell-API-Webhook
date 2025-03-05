@@ -14,7 +14,7 @@ on:
       apiUrl:
         description: 'API URL to test (defaults to local service)'
         required: false
-        default: 'http://localhost:80/health'
+        default: 'http://localhost:8080/health'
   pull_request:
     types: [labeled]
   workflow_call:
@@ -30,7 +30,7 @@ on:
       apiUrl:
         type: string
         required: false
-        default: 'http://localhost:80/health'
+        default: 'http://localhost:8080/health'
 
 jobs:
   performance-test-linux:
@@ -57,12 +57,12 @@ jobs:
     - name: Build and Start Docker Container for Testing
       run: |
         docker build -t webhookshell:test -f Dockerfile.linux .
-        docker run -d --name test-webhookshell -p 8080:80 webhookshell:test
+        docker run -d --name test-webhookshell -p 8080:8080 webhookshell:test
         echo "Waiting for container to start..."
         sleep 30
         docker ps
         docker logs test-webhookshell
-        curl -v http://localhost:80/health || echo "Health check failed"
+        curl -v http://localhost:8080/health || echo "Health check failed"
     
     - name: Copy load testing script
       run: |

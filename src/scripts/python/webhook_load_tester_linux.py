@@ -15,7 +15,7 @@ console = Console()
 
 def main():
     parser = argparse.ArgumentParser(description="WebhookShell API Load Tester")
-    parser.add_argument("--api-url", default="http://localhost:80", help="API URL to test")
+    parser.add_argument("--api-url", default="http://localhost:8080", help="API URL to test")
     parser.add_argument("--api-key", default="24ffc5be-7dd8-479f-898e-27169bf23e7f", help="API key for authentication")
     parser.add_argument("--concurrent-users", type=int, default=50, help="Number of concurrent users")
     parser.add_argument("--duration", type=int, default=5, help="Test duration in minutes")

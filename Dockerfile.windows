@@ -8,10 +8,15 @@ EXPOSE 443
 ENV POWERSHELL_VERSION=7.4.7
 
 # Ensure PATH includes System32 so cmd.exe and msiexec.exe are accessible
-ENV PATH="C:\\Windows\\System32;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\;$PATH"
-
+RUN dir
+RUN powershell.exe -command "ls $env"
+RUN cd ..
+RUN dir 
+RUN PATH
+RUN set
+RUN powershell.exe -version
 # Ensure CMD is found in PATH
-SHELL ["C:\\Windows\\System32\\cmd.exe", "/S", "/C"]
+SHELL ["cmd.exe", "/S", "/C"]
 
 # Download and install PowerShell
 RUN curl -L -o pwsh.msi https://github.com/PowerShell/PowerShell/releases/download/v%POWERSHELL_VERSION%/PowerShell-%POWERSHELL_VERSION%-win-x64.msi

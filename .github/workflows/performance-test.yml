@@ -141,7 +141,7 @@ jobs:
         powershell -Command "Start-Sleep -Seconds 30"
         docker ps
         docker logs test-webhookshell-windows
-        powershell -Command "Invoke-WebRequest -Uri http://localhost:8080/health -Verbose" || echo "Health check failed"
+        powershell -Command "Invoke-WebRequest -Uri http://localhost:8080/health -EA 'Silentlycontinue' -Verbose" || echo "Health check failed"
     
     - name: Copy load testing script 
       run: |

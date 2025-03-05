@@ -2,7 +2,7 @@
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS base
 WORKDIR /app
 EXPOSE 8080  
-EXPOSE 8443  
+ 
 
 # Set environment variables
 ENV POWERSHELL_VERSION=7.4.7
@@ -56,6 +56,6 @@ COPY --from=build /app/publish .
 RUN New-Item -ItemType Directory -Path scripts/powershell -Force; New-Item -ItemType Directory -Path scripts/python -Force
 
 # Set environment variables
-ENV ASPNETCORE_URLS="http://+:8080;https://+:8443"
+ENV ASPNETCORE_URLS="http://+:8080"
 
 ENTRYPOINT ["dotnet", "Webhookshell.dll"]

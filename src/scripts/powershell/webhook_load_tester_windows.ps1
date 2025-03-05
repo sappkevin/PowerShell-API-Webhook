@@ -44,16 +44,15 @@ class WebhookLoadTester {
             "key" = $this.apiKey
         }
 
-        # Run all scenarios in parallel
-        $scenarios = @(
-            { $this.RunGetScenario($startTime, $payload) }.GetNewClosure()
-            { $this.RunPostScenario($startTime, $payload) }.GetNewClosure()
-            { $this.RunBackgroundJobScenario($startTime, $payload) }.GetNewClosure()
-        )
+        # Run scenarios as background jobs
+        $jobs = @()
+        $jobs += Start-Job -ScriptBlock { param($tester, $start, $payload) $tester.RunGetScenario($start, $payload) } -ArgumentList $this, $startTime, $payload
+        $jobs += Start-Job -ScriptBlock { param($tester, $start, $payload) $tester.RunPostScenario($start, $payload) } -ArgumentList $this, $startTime, $payload
+        $jobs += Start-Job -ScriptBlock { param($tester, $start, $payload) $tester.RunBackgroundJobScenario($start, $payload) } -ArgumentList $this, $startTime, $payload
 
-        $scenarios | ForEach-Object -ThrottleLimit 3 -Parallel {
-            & $_
-        }
+        # Wait for all jobs to complete
+        $jobs | Wait-Job | Receive-Job
+        $jobs | Remove-Job
     }
 
     [void] RunGetScenario([datetime]$startTime, [hashtable]$payload) {
@@ -189,7 +188,7 @@ class WebhookLoadTester {
 
         $reportData | ConvertTo-Json -Depth 10 | Out-File $reportFile
 
-        # Markdown summary - updated path
+        # Markdown summary
         $summaryFile = "performance_tests\reports\summary-windows.md"
         $mdContent = @"
 ## Performance Test Summary

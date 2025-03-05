@@ -1,5 +1,5 @@
 # Use Windows Server Core 2022 with .NET 8.0 runtime
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS base
+FROM mcr.microsoft.com/windows/servercore:ltsc2022 AS base
 #WORKDIR /app
 EXPOSE 80
 EXPOSE 443
@@ -41,7 +41,7 @@ SHELL ["pwsh", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference
 RUN pwsh -Command "$PSVersionTable"
 
 # Build container image
-FROM mcr.microsoft.com/dotnet/sdk:8.0-windowsservercore-ltsc2022 AS build
+FROM mcr.microsoft.com/windows/servercore:ltsc2022 AS build
 WORKDIR /src
 
 # Copy csproj and restore dependencies

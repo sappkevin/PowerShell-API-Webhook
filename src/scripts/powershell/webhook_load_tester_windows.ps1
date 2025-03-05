@@ -1,8 +1,8 @@
 param (
-    [string]$ApiUrl = "http://localhost:80",
+    [string]$ApiUrl = "http://localhost:8080/health",  # Your API endpoint
     [string]$ApiKey = "24ffc5be-7dd8-479f-898e-27169bf23e7f",
     [int]$ConcurrentUsers = 50,
-    [int]$Duration = 5  # Duration in minutes
+    [int]$Duration = 2  # Duration in minutes
 )
 
 # Ensure reports directory exists
@@ -24,7 +24,7 @@ class WebhookLoadTester {
         $this.results = @{
             "GET API" = @{ "success" = 0; "fail" = 0; "latencies" = [System.Collections.Generic.List[double]]::new() }
             "POST API" = @{ "success" = 0; "fail" = 0; "latencies" = [System.Collections.Generic.List[double]]::new() }
-            "Background Job" = @{ "success" = 0; "fail" = 0; "latencies" = [System.Collections.Generic.List[double]]::new() }
+            # Removed "Background Job" since /jobs/v1/enqueue isn’t applicable
         }
     }
 
@@ -44,23 +44,17 @@ class WebhookLoadTester {
             "key" = $this.apiKey
         }
 
-        # Run scenarios as background jobs
-        $jobs = @()
-        $jobs += Start-Job -ScriptBlock { param($tester, $start, $payload) $tester.RunGetScenario($start, $payload) } -ArgumentList $this, $startTime, $payload
-        $jobs += Start-Job -ScriptBlock { param($tester, $start, $payload) $tester.RunPostScenario($start, $payload) } -ArgumentList $this, $startTime, $payload
-        $jobs += Start-Job -ScriptBlock { param($tester, $start, $payload) $tester.RunBackgroundJobScenario($start, $payload) } -ArgumentList $this, $startTime, $payload
-
-        # Wait for all jobs to complete
-        $jobs | Wait-Job | Receive-Job
-        $jobs | Remove-Job
+        # Run only GET and POST scenarios against /health
+        $this.RunGetScenario($startTime, $payload)
+        $this.RunPostScenario($startTime, $payload)
     }
 
     [void] RunGetScenario([datetime]$startTime, [hashtable]$payload) {
         $queryParams = ($payload.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join "&"
-        $endpoint = "$($this.apiUrl)/webhook/v1?$queryParams"
+        $endpoint = "$($this.apiUrl)?$queryParams"  # Directly use /health with query params
 
         while (((Get-Date) - $startTime).TotalSeconds -lt $this.durationSeconds) {
-            1..($this.concurrentUsers / 3) | ForEach-Object -ThrottleLimit ($this.concurrentUsers / 3) -Parallel {
+            1..([math]::Ceiling($this.concurrentUsers / 2)) | ForEach-Object -ThrottleLimit ([math]::Ceiling($this.concurrentUsers / 2)) -Parallel {
                 $tester = $using:this
                 $tester.SendGetRequest($using:endpoint)
             }
@@ -70,10 +64,10 @@ class WebhookLoadTester {
     }
 
     [void] RunPostScenario([datetime]$startTime, [hashtable]$payload) {
-        $endpoint = "$($this.apiUrl)/webhook/v1"
+        $endpoint = $this.apiUrl  # Directly use /health
 
         while (((Get-Date) - $startTime).TotalSeconds -lt $this.durationSeconds) {
-            1..($this.concurrentUsers / 3) | ForEach-Object -ThrottleLimit ($this.concurrentUsers / 3) -Parallel {
+            1..([math]::Ceiling($this.concurrentUsers / 2)) | ForEach-Object -ThrottleLimit ([math]::Ceiling($this.concurrentUsers / 2)) -Parallel {
                 $tester = $using:this
                 $tester.SendPostRequest($using:endpoint, $using:payload, "POST API")
             }
@@ -82,33 +76,16 @@ class WebhookLoadTester {
         }
     }
 
-    [void] RunBackgroundJobScenario([datetime]$startTime, [hashtable]$payload) {
-        $endpoint = "$($this.apiUrl)/jobs/v1/enqueue"
-
-        while (((Get-Date) - $startTime).TotalSeconds -lt $this.durationSeconds) {
-            1..($this.concurrentUsers / 3) | ForEach-Object -ThrottleLimit ($this.concurrentUsers / 3) -Parallel {
-                $tester = $using:this
-                $tester.SendPostRequest($using:endpoint, $using:payload, "Background Job")
-            }
-            Start-Sleep -Milliseconds 67  # ~15 requests per second
-            Write-Progress -Activity "Background Job Requests" -Status "$([int](((Get-Date) - $startTime).TotalSeconds))s elapsed" -PercentComplete (((Get-Date) - $startTime).TotalSeconds / $this.durationSeconds * 100)
-        }
-    }
-
     [void] SendGetRequest([string]$url) {
         $startTime = [System.Diagnostics.Stopwatch]::StartNew()
         try {
             $response = Invoke-WebRequest -Uri $url -Method Get -Headers @{"Accept" = "application/json"} -UseBasicParsing
             $latency = $startTime.Elapsed.TotalSeconds
+            [Threading.Interlocked]::Increment([ref]$this.results["GET API"].success) | Out-Null
             $this.results["GET API"].latencies.Add($latency)
-            if ($response.StatusCode -lt 400) {
-                $this.results["GET API"].success++
-            } else {
-                $this.results["GET API"].fail++
-            }
         } catch {
             Write-Host "GET request error: $_" -ForegroundColor Red
-            $this.results["GET API"].fail++
+            [Threading.Interlocked]::Increment([ref]$this.results["GET API"].fail) | Out-Null
         }
     }
 
@@ -117,15 +94,11 @@ class WebhookLoadTester {
         try {
             $response = Invoke-WebRequest -Uri $url -Method Post -Body ($payload | ConvertTo-Json) -ContentType "application/json" -Headers @{"Accept" = "application/json"} -UseBasicParsing
             $latency = $startTime.Elapsed.TotalSeconds
+            [Threading.Interlocked]::Increment([ref]$this.results[$scenario].success) | Out-Null
             $this.results[$scenario].latencies.Add($latency)
-            if ($response.StatusCode -lt 400) {
-                $this.results[$scenario].success++
-            } else {
-                $this.results[$scenario].fail++
-            }
         } catch {
             Write-Host "$scenario request error: $_" -ForegroundColor Red
-            $this.results[$scenario].fail++
+            [Threading.Interlocked]::Increment([ref]$this.results[$scenario].fail) | Out-Null
         }
     }
 

@@ -1,6 +1,6 @@
 # Use Windows Server Core 2022 with .NET 8.0 runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS base
-WORKDIR /app
+#WORKDIR /app
 EXPOSE 80
 EXPOSE 443
 
@@ -8,13 +8,21 @@ EXPOSE 443
 ENV POWERSHELL_VERSION=7.4.7
 
 # Ensure PATH includes System32 so cmd.exe and msiexec.exe are accessible
-RUN dir
-RUN powershell.exe -command "ls $env"
-RUN cd ..
-RUN dir 
-RUN PATH
-RUN set
-RUN powershell.exe -version
+# Debugging: Show directory contents
+RUN cmd /c "dir && echo --- Current Directory: && cd && echo --- Done"
+
+# Debugging: Print PATH variable
+RUN cmd /c "echo %PATH%"
+
+# Debugging: Show all environment variables
+RUN cmd /c "set"
+
+# Debugging: Show environment variables
+RUN powershell.exe -Command "Get-ChildItem Env: | Format-Table -AutoSize"
+
+# Debugging: Check PowerShell version
+RUN powershell.exe -Command "$PSVersionTable"
+
 # Ensure CMD is found in PATH
 SHELL ["cmd.exe", "/S", "/C"]
 

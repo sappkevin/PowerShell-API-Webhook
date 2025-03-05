@@ -64,9 +64,6 @@ jobs:
         docker logs test-webhookshell
         curl -v http://localhost:80/health || echo "Health check failed"
     
-    - name: Debug directory structure
-      run: ls -R
-
     - name: Copy load testing script
       run: |
         mkdir -p performance_tests
@@ -75,7 +72,9 @@ jobs:
         chmod +rwx ./performance_tests/reports
         cp ./src/scripts/python/webhook_load_tester_linux.py ./performance_tests/
         chmod +rwx ./performance_tests/webhook_load_tester_linux.py
-            
+    - name: Debug directory structure
+      run: ls -R
+      
     - name: Run Performance Tests
       run: |
         cd performance_tests
@@ -137,12 +136,12 @@ jobs:
     - name: Build and Start Docker Container for Testing
       run: |
         docker build -t webhookshellwin:testwindows -f Dockerfile.windows .
-        docker run -d --name test-webhookshell-windows -p 80:80 webhookshellwin:testwindows
+        docker run -d --name test-webhookshell-windows -p 8080:80 webhookshellwin:testwindows
         echo "Waiting for container to start..."
         powershell -Command "Start-Sleep -Seconds 30"
         docker ps
         docker logs test-webhookshell-windows
-        powershell -Command "Invoke-WebRequest -Uri http://localhost:80/health -Verbose" || echo "Health check failed"
+        powershell -Command "Invoke-WebRequest -Uri http://localhost:8080/health -Verbose" || echo "Health check failed"
     
     - name: Copy load testing script 
       run: |
@@ -154,7 +153,7 @@ jobs:
       run: |
         mkdir performance_tests\reports
         cd performance_tests
-        python webhook_load_tester_windows.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:80' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
+        python webhook_load_tester_windows.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:8080' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
             
     - name: Upload Test Reports
       uses: actions/upload-artifact@v4

@@ -35,7 +35,7 @@ jobs:
           docker images | grep webhookshell
           docker run -d --name test-webhookshell -p 8080:80 webhookshell:test-linux
           sleep 10
-          HEALTH_RESPONSE=$(curl -s http://localhost:8080/health || echo "FAILED")
+          HEALTH_RESPONSE=$(curl -s http://localhost:80/health || echo "FAILED")
           echo "Health response: $HEALTH_RESPONSE"
           
           if [[ "$HEALTH_RESPONSE" == *"Healthy"* ]]; then
@@ -66,8 +66,8 @@ jobs:
           @"
           FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS base
           WORKDIR /app
-          EXPOSE 80
-          EXPOSE 443
+          EXPOSE 8080
+          EXPOSE 8443
 
           SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
@@ -84,7 +84,7 @@ jobs:
           FROM base AS final
           WORKDIR /app
           COPY --from=build /app/publish .
-          ENV ASPNETCORE_URLS=http://+:80
+          ENV ASPNETCORE_URLS="http://+:8080;https://+:8443"
           ENTRYPOINT ["dotnet", "Webhookshell.dll"]
           "@ | Set-Content -Path Dockerfile.windows
       
@@ -97,7 +97,7 @@ jobs:
         shell: powershell
         run: |
         
-            docker run -d --name test-webhookshell -p 8080:80 webhookshell:test-windows
+            docker run -d --name test-webhookshell -p 8080:8080 webhookshell:test-windows
             Start-Sleep -Seconds 60  # Longer startup time
 
             # Print container logs

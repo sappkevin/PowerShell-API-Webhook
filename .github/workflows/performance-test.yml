@@ -394,6 +394,7 @@ jobs:
     - name: Display Test Summary for Linux Build
       run: |
             cat performance_tests/reports/summary.md
+
   performance-test-windows:
     runs-on: windows-latest
     
@@ -419,7 +420,7 @@ jobs:
     - name: Build and Start Docker Container for Testing
       run: |
           # Build the Docker image 
-          docker build -t webhookshell:test -f Dockerfile.linux .
+          docker build -t webhookshell:test -f Dockerfile.windows .
           
           # Run the container, exposing port 80 to host port 80
           docker run -d --name test-webhookshell -p 80:80 webhookshell:test

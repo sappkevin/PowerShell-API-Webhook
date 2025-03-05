@@ -1,44 +1,30 @@
 # Use Windows Server Core 2022 with .NET 8.0 runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS base
-#WORKDIR /app
+WORKDIR /app
 EXPOSE 80
 EXPOSE 443
 
 # Set environment variables
 ENV POWERSHELL_VERSION=7.4.7
 
-# Ensure PATH includes System32 so cmd.exe and msiexec.exe are accessible
-# Debugging: Print PATH variable
-RUN cmd /c "echo %PATH%"
-
-# Debugging: Show all environment variables
-RUN cmd /c "set"
-
-# Debugging: Show directory contents
-RUN cmd /c "dir && echo --- Current Directory: && cd && echo --- Done"
-
-# Debugging: Show environment variables
 RUN powershell.exe -Command "Get-ChildItem Env: | Format-Table -AutoSize"
 
-# Debugging: Check PowerShell version
-RUN powershell.exe -Command "$PSVersionTable"
+# Windows Server Core already has PowerShell available
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-# Ensure CMD is found in PATH
-SHELL ["cmd.exe", "/S", "/C"]
-
-# Download and install PowerShell
-RUN curl -L -o pwsh.msi https://github.com/PowerShell/PowerShell/releases/download/v%POWERSHELL_VERSION%/PowerShell-%POWERSHELL_VERSION%-win-x64.msi
-RUN start /wait msiexec.exe /i pwsh.msi /quiet /norestart
-RUN del pwsh.msi
-
-# Set environment variable for PowerShell path
-ENV PATH="C:\\Program Files\\PowerShell\\7\\;$PATH"
+# Download and install PowerShell Core
+RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
+    Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/download/v7.4.1/PowerShell-7.4.1-win-x64.msi" -OutFile PowerShell.msi; \
+    Start-Process -FilePath msiexec.exe -ArgumentList '/i', 'PowerShell.msi', '/quiet', '/norestart' -Wait; \
+    Remove-Item -Path PowerShell.msi; \
+    $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine'); \
+    Write-Host "PowerShell Core installed successfully"
 
 # Switch shell to PowerShell after installation
 SHELL ["pwsh", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 # Verify PowerShell installation
-RUN pwsh -Command "$PSVersionTable"
+RUN pwsh.exe -Command "$PSVersionTable"
 
 # Build container image
 FROM mcr.microsoft.com/dotnet/sdk:8.0-windowsservercore-ltsc2022 AS build

@@ -420,10 +420,10 @@ jobs:
     - name: Build and Start Docker Container for Testing
       run: |
           # Build the Docker image 
-          docker build -t webhookshell:test -f Dockerfile.windows .
+          docker build -t webhookshellwin:testwindows -f Dockerfile.windows .
           
           # Run the container, exposing port 80 to host port 80
-          docker run -d --name test-webhookshell -p 80:80 webhookshell:test
+          docker run -d --name test-webhookshell-windows -p 80:80 webhookshellwin:testwindows
           
           # Wait for container to initialize
           echo "Waiting for container to start..."
@@ -431,7 +431,7 @@ jobs:
           
           # Verify container is running and health endpoint is accessible
           docker ps
-          docker logs test-webhookshell
+          docker logs test-webhookshell-windows
           curl -v http://localhost:80/health || echo "Health check failed"
       
     - name: Copy load testing script

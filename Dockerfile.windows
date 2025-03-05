@@ -9,15 +9,18 @@ ENV POWERSHELL_VERSION=7.4.7
 
 # Download and install PowerShell
 SHELL ["cmd", "/S", "/C"]
-RUN curl -L -o pwsh.msi https://github.com/PowerShell/PowerShell/releases/download/v${POWERSHELL_VERSION}/PowerShell-${POWERSHELL_VERSION}-win-x64.msi && \
+RUN curl -L -o pwsh.msi https://github.com/PowerShell/PowerShell/releases/download/v%POWERSHELL_VERSION%/PowerShell-%POWERSHELL_VERSION%-win-x64.msi && \
     start /wait msiexec.exe /i pwsh.msi /quiet /norestart && \
     del pwsh.msi
 
-# After PowerShell Core is installed, we can switch to it
+# Set environment variable for PowerShell path
+ENV PATH="C:\\Program Files\\PowerShell\\7\\;$PATH"
+
+# Switch shell to PowerShell after installation
 SHELL ["pwsh", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 # Verify PowerShell installation
-RUN $PSVersionTable
+RUN pwsh -Command "$PSVersionTable"
 
 # Build container image
 FROM mcr.microsoft.com/dotnet/sdk:8.0-windowsservercore-ltsc2022 AS build
@@ -29,7 +32,6 @@ RUN dotnet restore "src/Webhookshell.csproj"
 
 # Copy everything else and build
 COPY . .
-WORKDIR "/src"
 RUN dotnet publish "src/Webhookshell.csproj" -c Release -o /app/publish /p:UseAppHost=true
 
 # Final image
@@ -38,8 +40,7 @@ WORKDIR /app
 COPY --from=build /app/publish .
 
 # Create scripts directories
-RUN mkdir -Force -Path scripts\powershell; \
-    mkdir -Force -Path scripts\python
+RUN mkdir -p scripts/powershell && mkdir -p scripts/python
 
 # Set environment variables
 ENV ASPNETCORE_URLS=http://+:80

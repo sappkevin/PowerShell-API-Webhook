@@ -139,11 +139,12 @@ jobs:
           docker build -t webhookshellwin:testwindows -f Dockerfile.windows .
           docker run -d --name test-webhookshell-windows -p 8080:8080 webhookshellwin:testwindows
           echo "Waiting for container to start..."
-          powershell -Command "Start-Sleep -Seconds 60"
+          Start-Sleep -Seconds 60
           docker ps
           docker logs test-webhookshell-windows
           echo "Testing health endpoint..."
-          powershell -Command "$response = try { (Invoke-WebRequest -Uri 'http://localhost:8080/health' -Method Get -UseBasicParsing).Content } catch { 'FAILED' }; Write-Output \"Health response: $response\""
+          $response = try {(Invoke-WebRequest -Uri 'http://localhost:8080/health' -Method Get -UseBasicParsing).Content } catch { 'FAILED' }
+          Write-Output "Health response: $response"
     
     - name: Copy load testing script 
       run: |

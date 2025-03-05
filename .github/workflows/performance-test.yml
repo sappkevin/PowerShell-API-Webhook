@@ -57,7 +57,7 @@ jobs:
     - name: Build and Start Docker Container for Testing
       run: |
         docker build -t webhookshell:test -f Dockerfile.linux .
-        docker run -d --name test-webhookshell -p 80:80 webhookshell:test
+        docker run -d --name test-webhookshell -p 8080:80 webhookshell:test
         echo "Waiting for container to start..."
         sleep 30
         docker ps
@@ -149,14 +149,14 @@ jobs:
     - name: Copy load testing script 
       run: |
         mkdir performance_tests
-        copy src\scripts\python\webhook_load_tester_windows.py performance_tests\
+        copy src\scripts\powershell\webhook_load_tester_windows.ps1 performance_tests\
         dir performance_tests
 
     - name: Run Performance Tests
       run: |
         mkdir performance_tests\reports
         cd performance_tests
-        python webhook_load_tester_windows.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:8080/health' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '2' }}
+        .\webhook_load_tester_windows.ps1 -ApiUrl 'http://localhost:8080/health' -ConcurrentUsers 50 -Duration 2
             
     - name: Upload Test Reports
       uses: actions/upload-artifact@v4

@@ -135,13 +135,14 @@ jobs:
 
     - name: Build and Start Docker Container for Testing
       run: |
-        docker build -t webhookshellwin:testwindows -f Dockerfile.windows .
-        docker run -d --name test-webhookshell-windows -p 8080:80 webhookshellwin:testwindows
-        echo "Waiting for container to start..."
-        powershell -Command "Start-Sleep -Seconds 30"
-        docker ps
-        docker logs test-webhookshell-windows
-        powershell -Command "Invoke-WebRequest -Uri http://localhost:8080/health -EA 'Silentlycontinue' -Verbose" || echo "Health check failed"
+          docker build -t webhookshellwin:testwindows -f Dockerfile.windows .
+          docker run -d --name test-webhookshell-windows -p 8080:8080 webhookshellwin:testwindows
+          echo "Waiting for container to start..."
+          powershell -Command "Start-Sleep -Seconds 30"
+          docker ps
+          docker logs test-webhookshell-windows
+          echo "Testing health endpoint..."
+          powershell -Command "$containerIp = docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' test-webhookshell-windows; $response = try { Invoke-WebRequest -Uri \"http://$containerIp:8080/health\" -Method Get -UseBasicParsing | Select-Object -ExpandProperty Content } catch { 'FAILED' }; echo 'Health response: ' + $response"
     
     - name: Copy load testing script 
       run: |
@@ -153,7 +154,7 @@ jobs:
       run: |
         mkdir performance_tests\reports
         cd performance_tests
-        python webhook_load_tester_windows.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:8080' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
+        python webhook_load_tester_windows.py --api-url ${{ github.event.inputs.apiUrl || 'http://localhost:8080/health' }} --concurrent-users ${{ github.event.inputs.concurrentUsers || '50' }} --duration ${{ github.event.inputs.testDuration || '5' }}
             
     - name: Upload Test Reports
       uses: actions/upload-artifact@v4

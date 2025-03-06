@@ -14,7 +14,7 @@ jobs:
   build-and-release:
     needs: test
     runs-on: ubuntu-latest
-    if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
+    if: ${{ false }}  
     permissions:
       contents: write
     steps:
@@ -147,17 +147,17 @@ jobs:
           - Ensure proper permissions for script execution
           - Configure IP allow lists if needed
           
-  performance-testing:
-    needs: [test, build-and-release]
-    if: ${{ false }}  # Changed from original condition
-    uses: ./.github/workflows/performance-test.yml
-    with:
-      concurrentUsers: '50'
-      testDuration: '5'
-      apiUrl: 'http://localhost:5000'
+  #performance-testing:
+  #  needs: [test, build-and-release]
+  #  if: ${{ false }}  # Changed from original condition
+  #  uses: ./.github/workflows/performance-test.yml
+  #  with:
+  #    concurrentUsers: '50'
+  #    testDuration: '5'
+  #    apiUrl: 'http://localhost:5000'
 
   docker-build-and-test:
-    needs: [test, build-and-release,performance-testing]
+    needs: [test, build-and-release]
     if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
     uses: ./.github/workflows/docker-multi-arch-build.yml
     with:

@@ -10,9 +10,60 @@ jobs:
     uses: ./.github/workflows/test.yml
     with:
       dotnet-version: '8.0.x'
+  
+  generate-version-number:
+    needs: [test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create version number
+        id: create_version
+        run: |
+          # Create a valid version using date and GitHub run number
+          # Format: 1.0.YYDDD.RUNID (limited to 4 segments for .NET versioning)
+          DATE_PART=$(date +%y%j)
+          RUN_PART="${GITHUB_RUN_NUMBER:-1}"
+          
+          # Ensure run part is numeric and limited to 5 digits max
+          RUN_PART=$(echo $RUN_PART | tr -cd '0-9' | cut -c 1-5)
+          
+          # Format the version string - valid for .NET (Major.Minor.Build.Revision)
+          BUILD_NUMBER="${DATE_PART}"
+          REVISION_NUMBER="${RUN_PART}"
+          VERSION="1.0.${BUILD_NUMBER}.${REVISION_NUMBER}"
+          TAG_NAME="v${VERSION}"
+          
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          
+          echo "Generated version: ${VERSION}"
+          echo "Generated tag: ${TAG_NAME}"
 
-  build-and-release:
-    needs: test
+  docker-build-and-test-images:
+    needs: [test]
+    if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
+    uses: ./.github/workflows/docker-multi-arch-build.yml
+    with:
+      push_images: false  # Just build and test, don't push yet
+
+  docker-deploy-images:
+    needs: [docker-build-and-test-images,generate-version-number]  
+    permissions:
+      contents: read
+      packages: write
+    if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
+    uses: ./.github/workflows/docker-deploy.yml
+    with:
+      version_tag: ${{ needs.generate-version-number.outputs.version }}
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  # Skipping - For Development only
+  build-and-release-binaries:
+    needs: [docker-deploy-images]
     runs-on: ubuntu-latest
     if: ${{ false }}  
     permissions:
@@ -146,32 +197,17 @@ jobs:
           - Update appsettings.json with your webhook configurations
           - Ensure proper permissions for script execution
           - Configure IP allow lists if needed
-          
-  #performance-testing:
-  #  needs: [test, build-and-release]
-  #  if: ${{ false }}  # Changed from original condition
-  #  uses: ./.github/workflows/performance-test.yml
-  #  with:
-  #    concurrentUsers: '50'
-  #    testDuration: '5'
-  #    apiUrl: 'http://localhost:5000'
-
-  docker-build-and-test:
-    needs: [test, build-and-release]
-    if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
-    uses: ./.github/workflows/docker-multi-arch-build.yml
+  # Skipping - For Development only
+  performance-testing:
+    needs: [test, build-and-release-binaries]
+    if: ${{ false }}  
+    uses: ./.github/workflows/performance-test.yml
     with:
-      push_images: false  # Just build and test, don't push yet
+      concurrentUsers: '50'
+      testDuration: '5'
+      apiUrl: 'http://localhost:5000'
 
-  docker-deploy:
-    needs: [build-and-release, docker-build-and-test]  
-    permissions:
-      contents: read
-      packages: write
-    if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
-    uses: ./.github/workflows/docker-deploy.yml
-    with:
-      version_tag: ${{ needs.build-and-release.outputs.version }}
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  
+
+
+  

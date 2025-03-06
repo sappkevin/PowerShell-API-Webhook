@@ -51,56 +51,50 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
-      
-      # Set up Docker
-      - name: Set up Docker
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver: docker
 
-      - name: Build Windows image
+      - name: Build Docker image
         uses: docker/build-push-action@v5
+        env:
+          DOCKER_BUILDKIT: 0  # Disable BuildKit
         with:
-            context: .
-            file: ./Dockerfile.windows
-            load: true
-            tags: webhookshell:test-windows
+          context: .
+          file: ./Dockerfile.windows
+          tags: webhookshell:test-windows
+          load: true  # Load the image into Docker
       
-      - name: Test Windows docker image
+      - name: Test Windows Docker image
         shell: powershell
         run: |
-        
+          try {
+            # Start the container
             docker run -d --name test-webhookshell -p 8080:8080 webhookshell:test-windows
-            Start-Sleep -Seconds 60  # Longer startup time
 
-            # Print container logs
-            Write-Host "Container Logs:"
-            docker logs test-webhookshell
-
-            # Try to get detailed connection information
-            Write-Host "Container Network Information:"
-            docker inspect test-webhookshell
-
-            # Attempt web request with more verbose output
-            try {
-                $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -Verbose -ErrorAction Stop
-                Write-Host "Full Response:"
-                $response | Format-List *
-            } catch {
-                Write-Host "Connection Error Details:"
-                $_ | Format-List *
-            }            
-            # Check for "Healthy" in any response
-            if ($response.Content -match "Healthy") {
-                Write-Host "✅ Health endpoint test passed"
-            } else {
-                Write-Host "❌ Health endpoint test failed: No 'Healthy' response"
-                docker logs test-webhookshell
-                exit 1
+            # Wait for the health endpoint to respond (up to 120 seconds)
+            $timeout = 120
+            $interval = 5
+            $elapsed = 0
+            $healthy = $false
+            while ($elapsed -lt $timeout -and -not $healthy) {
+              try {
+                $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -TimeoutSec 5 -ErrorAction Stop
+                if ($response.Content -match "Healthy") {
+                  $healthy = $true
+                }
+              } catch {
+                Write-Host "Waiting for container to be ready... ($elapsed/$timeout seconds)"
+                Start-Sleep -Seconds $interval
+                $elapsed += $interval
+              }
             }
-            
-            #Cleanup
-            docker rm -f test-webhookshell
-            
+
+            if (-not $healthy) {
+              Write-Host "❌ Container failed to become healthy after $timeout seconds"
+              docker logs test-webhookshell
+              exit 1
+            }
+
+            # Log success and response details
+            Write-Host "✅ Health endpoint test passed"
+            Write

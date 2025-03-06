@@ -1,19 +1,9 @@
 # Build stage
 FROM mcr.microsoft.com/dotnet/sdk:8.0-windowsservercore-ltsc2022 AS build
 WORKDIR /app
-# Copy csproj and restore dependencies
-COPY ["src/Webhookshell.csproj", "src/"]
-RUN dotnet restore "src/Webhookshell.csproj"
-
-# Copy everything else and build
-COPY . .
-RUN dotnet publish "src/Webhookshell.csproj" -c Release -o /app/publish /p:UseAppHost=true
-# Copy source code and publish
-COPY src/ ./src/
-RUN dotnet publish -c Release -o /out
 
 # Set shell to PowerShell for consistency
-SHELL ["powershell", "-Command"]
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 # Install Chocolatey
 # Copy Chocolatey from an official image
@@ -39,9 +29,23 @@ RUN choco install powershell-core --version=7.4.1 -y; \
 # Verify PowerShell Core
 RUN pwsh.exe -command "$PSVersionTable" || exit 1
 
+# Switch shell to PowerShell after installation
+SHELL ["pwsh", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS runtime
-WORKDIR /app
+WORKDIR /src
+# Copy csproj and restore dependencies
+COPY ["src/Webhookshell.csproj", "src/"]
+RUN dotnet restore "src/Webhookshell.csproj"
+
+# Copy everything else and build
+COPY . .
+RUN dotnet publish "src/Webhookshell.csproj" -c Release -o /app/publish /p:UseAppHost=true
+
+# Copy source code and publish
+COPY src/ ./src/
+RUN dotnet publish -c Release -o /out
 
 # Final image
 FROM build AS final

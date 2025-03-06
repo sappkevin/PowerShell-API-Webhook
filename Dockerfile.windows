@@ -2,7 +2,7 @@
 FROM chocolatey/choco:latest-windows AS choco
 
 # Build stage
-FROM mcr.microsoft.com/dotnet/sdk:8.0-windowsservercore-ltsc2022 AS build
+FROM mcr.microsoft.com/dotnet/aspnet:8.0:8.0-windowsservercore-ltsc2022 AS build
 WORKDIR /app
 
 # Copy Chocolatey from the builder image

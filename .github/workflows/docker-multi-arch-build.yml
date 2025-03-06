@@ -54,11 +54,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Set up Docker Buildx
+      # Set up Docker
+      - name: Set up Docker
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
 
       - name: Build Docker image
         uses: docker/build-push-action@v5
+        env:
+          DOCKER_BUILDKIT: 0  # Disable BuildKit
         with:
           context: .
           file: ./Dockerfile.windows
@@ -98,4 +103,6 @@ jobs:
 
             # Log success and response details
             Write-Host "✅ Health endpoint test passed"
-            Write
+            
+            #Cleanup
+            docker rm -f test-webhookshell

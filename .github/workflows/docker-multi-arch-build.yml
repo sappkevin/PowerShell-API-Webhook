@@ -33,9 +33,9 @@ jobs:
       - name: Test Linux image
         run: |
           docker images | grep webhookshell
-          docker run -d --name test-webhookshell -p 8080:80 webhookshell:test-linux
+          docker run -d --name test-webhookshell -p 8080:8080 webhookshell:test-linux
           sleep 10
-          HEALTH_RESPONSE=$(curl -s http://localhost:80/health || echo "FAILED")
+          HEALTH_RESPONSE=$(curl -s http://localhost:8080/health || echo "FAILED")
           echo "Health response: $HEALTH_RESPONSE"
           
           if [[ "$HEALTH_RESPONSE" == *"Healthy"* ]]; then
@@ -60,38 +60,13 @@ jobs:
         with:
           driver: docker
 
-      - name: Prepare Dockerfile for Windows
-        shell: powershell
-        run: |
-          @"
-          FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS base
-          WORKDIR /app
-          EXPOSE 8080
-          EXPOSE 8443
-
-          SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
-
-          FROM mcr.microsoft.com/dotnet/sdk:8.0-windowsservercore-ltsc2022 AS build
-          WORKDIR /src
-
-          COPY ["src/Webhookshell.csproj", "src/"]
-          RUN dotnet restore "src/Webhookshell.csproj"
-
-          COPY . .
-          WORKDIR "/src"
-          RUN dotnet publish "src/Webhookshell.csproj" -c Release -o /app/publish /p:UseAppHost=true
-
-          FROM base AS final
-          WORKDIR /app
-          COPY --from=build /app/publish .
-          ENV ASPNETCORE_URLS="http://+:8080;https://+:8443"
-          ENTRYPOINT ["dotnet", "Webhookshell.dll"]
-          "@ | Set-Content -Path Dockerfile.windows
-      
       - name: Build Windows image
-        shell: powershell
-        run: |
-          docker build -t webhookshell:test-windows -f Dockerfile.windows .
+        uses: docker/build-push-action@v5
+        with:
+            context: .
+            file: ./Dockerfile.windows
+            load: true
+            tags: webhookshell:test-windows
       
       - name: Test Windows docker image
         shell: powershell

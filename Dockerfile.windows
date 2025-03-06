@@ -1,8 +1,22 @@
 # Use Windows Server Core 2022 with .NET 8.0 runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS base
 WORKDIR /app
-EXPOSE 8080  
- 
+
+# Build 
+# Copy the solution file into the container
+COPY *.sln ./
+
+# Copy all project files into the container
+COPY src/*.csproj ./src/
+
+# Restore dependencies for the solution
+RUN dotnet restore
+
+# Copy all source code into the container
+COPY src/ ./src/
+
+# Build and publish the application
+RUN dotnet publish -c Release -o /out
 
 # Set environment variables
 ENV POWERSHELL_VERSION=7.4.7
@@ -10,7 +24,7 @@ ENV POWERSHELL_VERSION=7.4.7
 RUN powershell.exe -Command "Get-ChildItem Env: | Format-Table -AutoSize"
 
 # Windows Server Core already has PowerShell available
-SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+#SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 # Download and install Python3
 RUN powershell -Command "Invoke-WebRequest -Uri https://www.python.org/ftp/python/3.10.11/python-3.10.11-amd64.exe -OutFile python-installer.exe; \
@@ -21,6 +35,9 @@ RUN python -m ensurepip --upgrade; \
     python -m pip install --upgrade pip; \
     pip install aiohttp rich
 
+# Verify Python installation
+RUN python --version
+
 # Download and install PowerShell Core
 RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
     Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/download/v7.4.1/PowerShell-7.4.1-win-x64.msi" -OutFile PowerShell.msi; \
@@ -29,33 +46,15 @@ RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tl
     $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine'); \
     Write-Host "PowerShell Core installed successfully"
 
-# Switch shell to PowerShell after installation
-SHELL ["pwsh", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
-
 # Verify PowerShell installation
-RUN $PSVersionTable
+RUN pwsh.exe -command "$PSVersionTable"
 
 # Build container image
-FROM mcr.microsoft.com/dotnet/sdk:8.0-windowsservercore-ltsc2022 AS build
-WORKDIR /src
-
-# Copy csproj and restore dependencies
-COPY ["src/Webhookshell.csproj", "src/"]
-RUN dotnet restore "src/Webhookshell.csproj"
-
-# Copy everything else and build
-COPY . .
-RUN dotnet publish "src/Webhookshell.csproj" -c Release -o /app/publish /p:UseAppHost=true
-
-# Final image
-FROM base AS final
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS runtime
 WORKDIR /app
-COPY --from=build /app/publish .
 
-# Create scripts directories
-RUN New-Item -ItemType Directory -Path scripts/powershell -Force; New-Item -ItemType Directory -Path scripts/python -Force
+# Copy the published output from the build stage
+COPY --from=build /out ./
 
-# Set environment variables
-ENV ASPNETCORE_URLS="http://+:8080"
-
+EXPOSE 8080 8443
 ENTRYPOINT ["dotnet", "Webhookshell.dll"]

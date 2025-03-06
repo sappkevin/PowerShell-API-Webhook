@@ -42,14 +42,14 @@ jobs:
           echo "Generated tag: ${TAG_NAME}"
 
   docker-build-and-test-images:
-    needs: [test]
+    needs: [test,generate-version-number]
     if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
     uses: ./.github/workflows/docker-multi-arch-build.yml
     with:
       push_images: false  # Just build and test, don't push yet
 
   docker-deploy-images:
-    needs: [docker-build-and-test-images,generate-version-number]  
+    needs: [generate-version-number,docker-build-and-test-images]  
     permissions:
       contents: read
       packages: write
@@ -205,7 +205,7 @@ jobs:
     with:
       concurrentUsers: '50'
       testDuration: '5'
-      apiUrl: 'http://localhost:5000'
+      apiUrl: 'http://localhost:8080'
 
   
 

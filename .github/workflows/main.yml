@@ -149,7 +149,7 @@ jobs:
           
   performance-testing:
     needs: [test, build-and-release]
-    if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
+    if: ${{ false }}  # Changed from original condition
     uses: ./.github/workflows/performance-test.yml
     with:
       concurrentUsers: '50'

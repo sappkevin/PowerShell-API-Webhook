@@ -28,6 +28,7 @@ jobs:
           context: .
           file: ./Dockerfile.linux
           load: true
+          no-cache: true  # Disable build cache
           tags: webhookshell:test-linux
       
       - name: Test Linux image
@@ -67,6 +68,7 @@ jobs:
           file: ./Dockerfile.windows
           tags: webhookshell:test-windows
           load: true  # Load the image into Docker
+          no-cache: true  # Disable build cache
       
       - name: Test Windows Docker image
         shell: powershell

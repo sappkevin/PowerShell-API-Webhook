@@ -1,59 +1,47 @@
-# Use Windows Server Core 2022 with .NET 8.0 runtime
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS base
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:8.0-windowsservercore-ltsc2022 AS build
 WORKDIR /app
 
-# Build 
-# Copy the solution file into the container
+# Copy the solution file and project files
 COPY *.sln ./
-
-# Copy all project files into the container
 COPY src/*.csproj ./src/
-
-# Restore dependencies for the solution
 RUN dotnet restore
 
-# Copy all source code into the container
+# Copy source code and publish
 COPY src/ ./src/
-
-# Build and publish the application
 RUN dotnet publish -c Release -o /out
 
-# Set environment variables
-ENV POWERSHELL_VERSION=7.4.7
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS runtime
+WORKDIR /app
 
-RUN powershell.exe -Command "Get-ChildItem Env: | Format-Table -AutoSize"
+# Set shell to PowerShell for consistency
+SHELL ["powershell", "-Command"]
 
-# Windows Server Core already has PowerShell available
-#SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
-
-# Download and install Python3
-RUN powershell -Command "Invoke-WebRequest -Uri https://www.python.org/ftp/python/3.10.11/python-3.10.11-amd64.exe -OutFile python-installer.exe; \
-    Start-Process -FilePath python-installer.exe -ArgumentList '/quiet InstallAllUsers=1 PrependPath=1' -Wait; \
-    Remove-Item python-installer.exe"
+# Install Python 3.10.11
+RUN Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.10.11/python-3.10.11-amd64.exe' -OutFile 'python-installer.exe' -ErrorAction Stop; \
+    Start-Process -FilePath 'python-installer.exe' -ArgumentList '/quiet InstallAllUsers=1 PrependPath=1' -Wait -NoNewWindow; \
+    Remove-Item 'python-installer.exe' -Force; \
+    $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
 
 RUN python -m ensurepip --upgrade; \
     python -m pip install --upgrade pip; \
     pip install aiohttp rich
 
-# Verify Python installation
-RUN python --version
+# Verify Python
+RUN python --version || exit 1
 
-# Download and install PowerShell Core
+# Install PowerShell Core 7.4.1
 RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
-    Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/download/v7.4.1/PowerShell-7.4.1-win-x64.msi" -OutFile PowerShell.msi; \
-    Start-Process -FilePath msiexec.exe -ArgumentList '/i', 'PowerShell.msi', '/quiet', '/norestart' -Wait; \
-    Remove-Item -Path PowerShell.msi; \
-    $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine'); \
-    Write-Host "PowerShell Core installed successfully"
+    Invoke-WebRequest -Uri 'https://github.com/PowerShell/PowerShell/releases/download/v7.4.1/PowerShell-7.4.1-win-x64.msi' -OutFile 'PowerShell.msi' -ErrorAction Stop; \
+    Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i', 'PowerShell.msi', '/quiet', '/norestart' -Wait -NoNewWindow; \
+    Remove-Item -Path 'PowerShell.msi' -Force; \
+    $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
 
-# Verify PowerShell installation
-RUN pwsh.exe -command "$PSVersionTable"
+# Verify PowerShell Core
+RUN pwsh.exe -command "$PSVersionTable" || exit 1
 
-# Build container image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS runtime
-WORKDIR /app
-
-# Copy the published output from the build stage
+# Copy published output from build stage
 COPY --from=build /out ./
 
 EXPOSE 8080 8443

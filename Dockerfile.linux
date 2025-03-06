@@ -1,14 +1,10 @@
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
-# Build 
 # Copy the solution file into the container
 COPY *.sln ./
-
-# Copy all project files into the container
 COPY src/*.csproj ./src/
-
-# Restore dependencies for the solution
 RUN dotnet restore
 
 # Copy all source code into the container
@@ -17,10 +13,9 @@ COPY src/ ./src/
 # Build and publish the application
 RUN dotnet publish -c Release -o /out
 
-# Publish Runtime stage
+# Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
-
 
 # Install PowerShell Core and Python 3
 RUN apt-get update && \

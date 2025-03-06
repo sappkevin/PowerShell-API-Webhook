@@ -70,6 +70,7 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    if: ${{ false }}  
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

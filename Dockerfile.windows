@@ -1,17 +1,17 @@
 # Use an official Chocolatey image as a builder
-FROM chocolatey/choco:latest AS choco
+#FROM chocolatey/choco:latest AS choco
 
 # Build stage
 FROM mcr.microsoft.com/dotnet/sdk:8.0-windowsservercore-ltsc2022 AS build
 WORKDIR /app
 
 # Copy Chocolatey from the builder image
-COPY --from=choco C:\ProgramData\chocolatey C:\ProgramData\chocolatey
+#COPY --from=choco C:\ProgramData\chocolatey C:\ProgramData\chocolatey
+
+# Install Chocolatey using CMD
+RUN @"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))" && SET "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
 # Update PATH
 ENV PATH="C:\ProgramData\chocolatey\bin;${PATH}"
-# Install Chocolatey using CMD
-#RUN @"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))" && SET "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
-
 # Verify installation
 RUN choco -v
 

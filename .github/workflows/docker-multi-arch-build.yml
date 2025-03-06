@@ -59,8 +59,6 @@ jobs:
 
       - name: Build Docker image
         uses: docker/build-push-action@v5
-        env:
-          DOCKER_BUILDKIT: 0  # Disable BuildKit
         with:
           context: .
           file: ./Dockerfile.windows

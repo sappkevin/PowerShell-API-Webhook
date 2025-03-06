@@ -18,12 +18,16 @@ WORKDIR /app
 # Set shell to PowerShell for consistency
 SHELL ["powershell", "-Command"]
 
-# Install Python 3.10.11
-RUN Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.10.11/python-3.10.11-amd64.exe' -OutFile 'python-installer.exe' -ErrorAction Stop; \
-    Start-Process -FilePath 'python-installer.exe' -ArgumentList '/quiet InstallAllUsers=1 PrependPath=1' -Wait -NoNewWindow; \
-    Remove-Item 'python-installer.exe' -Force; \
+# Install Chocolatey
+RUN Set-ExecutionPolicy Bypass -Scope Process -Force; \
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
+    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+# Install Python 3.10.11 using Chocolatey
+RUN choco install python310 --version=3.10.11 -y; \
     $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
 
+# Upgrade pip and install Python packages
 RUN python -m ensurepip --upgrade; \
     python -m pip install --upgrade pip; \
     pip install aiohttp rich
@@ -31,11 +35,8 @@ RUN python -m ensurepip --upgrade; \
 # Verify Python
 RUN python --version || exit 1
 
-# Install PowerShell Core 7.4.1
-RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
-    Invoke-WebRequest -Uri 'https://github.com/PowerShell/PowerShell/releases/download/v7.4.1/PowerShell-7.4.1-win-x64.msi' -OutFile 'PowerShell.msi' -ErrorAction Stop; \
-    Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i', 'PowerShell.msi', '/quiet', '/norestart' -Wait -NoNewWindow; \
-    Remove-Item -Path 'PowerShell.msi' -Force; \
+# Install PowerShell Core 7.4.1 using Chocolatey
+RUN choco install powershell-core --version=7.4.1 -y; \
     $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
 
 # Verify PowerShell Core

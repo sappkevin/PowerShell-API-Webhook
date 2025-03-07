@@ -1,59 +1,34 @@
-# Start with Windows Server Core
-FROM mcr.microsoft.com/windows/servercore:ltsc2022 AS base
+# Use an official .NET runtime image as the base
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022
 
-# Set shell to PowerShell
+# Use PowerShell as the shell
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-# Install Chocolatey
-RUN Set-ExecutionPolicy Bypass -Scope Process -Force; \
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
-    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+# Install Chocolatey (simplified method)
+RUN Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 
-# Install .NET 8.0 LTS SDK using Chocolatey
-RUN choco install dotnet-sdk --version=8.0.100 -y
-
-# Install Python 3.10 using Chocolatey
-RUN choco install python310 --version=3.10.11 -y; \
-    python -m ensurepip --upgrade; \
-    python -m pip install --upgrade pip; \
-    pip install aiohttp rich; \
-    python --version
+# Install Python 3.10.11 using Chocolatey
+RUN choco install python310 --version=3.10.11 -y --no-progress
+RUN $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine'); \
+    & "$env:ProgramFiles\Python310\python.exe" -m pip install --upgrade pip; \
+    & "$env:ProgramFiles\Python310\python.exe" -m pip install aiohttp rich
 
 # Install PowerShell Core 7.4.1 using Chocolatey
-RUN choco install powershell-core --version=7.4.1 -y; \
-    pwsh.exe -Command "$PSVersionTable"
-
-# Update PATH for all installed tools
-RUN $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine"); \
-    [System.Environment]::SetEnvironmentVariable("PATH", $env:Path, [System.EnvironmentVariableTarget]::Machine)
-
-# Verify installations
-RUN dotnet --version; \
-    python --version; \
-    pwsh -Version
-
-# Build stage
-FROM base AS build
-WORKDIR /app
-
-# Copy .NET project files and restore dependencies
-COPY ["src/Webhookshell.csproj", "./"]
-RUN dotnet restore "Webhookshell.csproj"
-
-# Copy the rest of the source code and publish
-COPY src/ .
-RUN dotnet publish "Webhookshell.csproj" -c Release -o /app/publish /p:UseAppHost=true
-
-# Final runtime stage
-FROM base AS final
-WORKDIR /app
-
-# Copy only the published app from the build stage
-COPY --from=build /app/publish .
+RUN choco install powershell-core --version=7.4.1 -y --no-progress
 
 # Create scripts directory structure
-RUN New-Item -ItemType Directory -Path "/app/scripts/powershell" -Force
-RUN New-Item -ItemType Directory -Path "/app/scripts/python" -Force
+RUN New-Item -ItemType Directory -Path "C:\app\scripts\powershell" -Force
+RUN New-Item -ItemType Directory -Path "C:\app\scripts\python" -Force
+
+# Verify installations
+RUN Write-Host "Verifying installations:"; \
+    Write-Host "dotnet: $(dotnet --version)"; \
+    Write-Host "python: $(& $env:ProgramFiles\Python310\python.exe --version)"; \
+    Write-Host "powershell: $(pwsh -Command "$PSVersionTable.PSVersion.ToString()")"
+
+# Copy published files (assuming you build the app externally)
+WORKDIR /app
+COPY ["src/bin/Release/net8.0/publish", "."]
 
 # Expose ports
 EXPOSE 8080 8443

@@ -1,23 +1,18 @@
-# Use an official Chocolatey image as a builder
-FROM chocolatey/choco:latest-windows AS choco
+# Start with Windows Server Core
+FROM mcr.microsoft.com/windows/servercore:ltsc2022 AS base
 
-# Build stage
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS build
-WORKDIR /app
-
-# Copy Chocolatey from the builder image
-COPY --from=choco C:\ProgramData\chocolatey C:\ProgramData\chocolatey
-
-# Update PATH for Chocolatey
-ENV PATH="C:\ProgramData\chocolatey\bin;${PATH}"
-
-# Verify Chocolatey installation
-RUN choco -v
-
-# Set shell to PowerShell for consistency
+# Set shell to PowerShell
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-# Install Python 3.10.11 and dependencies using Chocolatey
+# Install Chocolatey
+RUN Set-ExecutionPolicy Bypass -Scope Process -Force; \
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
+    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+# Install .NET 8.0 LTS SDK using Chocolatey
+RUN choco install dotnet-sdk --version=8.0.100 -y
+
+# Install Python 3.10 using Chocolatey
 RUN choco install python310 --version=3.10.11 -y; \
     python -m ensurepip --upgrade; \
     python -m pip install --upgrade pip; \
@@ -28,8 +23,18 @@ RUN choco install python310 --version=3.10.11 -y; \
 RUN choco install powershell-core --version=7.4.1 -y; \
     pwsh.exe -Command "$PSVersionTable"
 
-# Update PATH to include Python and PowerShell Core
-ENV PATH="C:\Python310;C:\Python310\Scripts;C:\Program Files\PowerShell\7;${PATH}"
+# Update PATH for all installed tools
+RUN $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine"); \
+    [System.Environment]::SetEnvironmentVariable("PATH", $env:Path, [System.EnvironmentVariableTarget]::Machine)
+
+# Verify installations
+RUN dotnet --version; \
+    python --version; \
+    pwsh -Version
+
+# Build stage
+FROM base AS build
+WORKDIR /app
 
 # Copy .NET project files and restore dependencies
 COPY ["src/Webhookshell.csproj", "./"]
@@ -40,11 +45,18 @@ COPY src/ .
 RUN dotnet publish "Webhookshell.csproj" -c Release -o /app/publish /p:UseAppHost=true
 
 # Final runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-windowsservercore-ltsc2022 AS final
+FROM base AS final
 WORKDIR /app
 
 # Copy only the published app from the build stage
 COPY --from=build /app/publish .
 
+# Create scripts directory structure
+RUN New-Item -ItemType Directory -Path "/app/scripts/powershell" -Force
+RUN New-Item -ItemType Directory -Path "/app/scripts/python" -Force
+
+# Expose ports
 EXPOSE 8080 8443
+
+# Set entry point
 ENTRYPOINT ["dotnet", "Webhookshell.dll"]

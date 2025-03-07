@@ -10,29 +10,41 @@ RUN Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https:/
 # Install Python 3.10.11 using Chocolatey with proper path handling
 RUN choco install python310 --version=3.10.11 -y --no-progress
 
-# Update PATH and verify Python installation
-RUN $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine'); \
-    Write-Host "Refreshing environment variables..."; \
-    refreshenv; \
-    Write-Host "Finding Python installation..."; \
-    $pythonPath = (Get-Command python -ErrorAction SilentlyContinue).Source; \
-    if (-not $pythonPath) { \
-        $pythonPath = "C:\Python310\python.exe"; \
-        if (Test-Path $pythonPath) { \
-            Write-Host "Found Python at: $pythonPath"; \
-        } else { \
-            $pythonPath = (Get-ChildItem -Path "C:\" -Recurse -Filter "python.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName; \
-            Write-Host "Found Python via search at: $pythonPath"; \
-        } \
-    } else { \
+# Update PATH and find Python
+RUN Write-Host "Refreshing environment variables..."; \
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine');
+
+# Find Python location
+RUN Write-Host "Finding Python installation..."; \
+    $pythonCmd = Get-Command python -ErrorAction SilentlyContinue; \
+    if ($pythonCmd) { \
+        $pythonPath = $pythonCmd.Source; \
         Write-Host "Found Python in PATH: $pythonPath"; \
+    } elseif (Test-Path "C:\Python310\python.exe") { \
+        $pythonPath = "C:\Python310\python.exe"; \
+        Write-Host "Found Python at: $pythonPath"; \
+    } else { \
+        Write-Host "Searching for Python installation..."; \
+        $pythonPath = (Get-ChildItem -Path "C:\" -Filter "python.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName; \
+        Write-Host "Found Python via search at: $pythonPath"; \
     }; \
     if (-not $pythonPath) { \
         throw "Python installation not found"; \
     }; \
+    Write-Host "Using Python at: $pythonPath"; \
+    & $pythonPath --version
+
+# Install pip packages using found Python
+RUN $pythonPath = if (Get-Command python -ErrorAction SilentlyContinue) { \
+        (Get-Command python).Source \
+    } elseif (Test-Path "C:\Python310\python.exe") { \
+        "C:\Python310\python.exe" \
+    } else { \
+        (Get-ChildItem -Path "C:\" -Filter "python.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName \
+    }; \
     Write-Host "Installing pip packages using Python at: $pythonPath"; \
     & $pythonPath -m pip install --upgrade pip; \
-    & $pythonPath -m pip install aiohttp rich;
+    & $pythonPath -m pip install aiohttp rich
 
 # Install PowerShell Core 7.4.1 using Chocolatey
 RUN choco install powershell-core --version=7.4.1 -y --no-progress

@@ -50,69 +50,70 @@ jobs:
           docker rm -f test-webhookshell
   
   build-windows:
-   runs-on: windows-latest
-   steps:
-     - name: Checkout code
-       uses: actions/checkout@v4
+    runs-on: windows-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
     
-     - name: Setup .NET
-       uses: actions/setup-dotnet@v4
-       with:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
         dotnet-version: '8.0.x'
     
-     - name: Build .NET Application
-       run: |
+    - name: Build .NET Application
+      run: |
         dotnet restore
         dotnet publish src/Webhookshell.csproj -c Release -o ./src/bin/Release/net8.0/publish
-        
-    # Set up Docker
-     - name: Set up Docker
-       uses: docker/setup-buildx-action@v3
-       with:
-        driver: docker
     
-     - name: Build Docker image
-       uses: docker/build-push-action@v5
-       with:
-        context: .
-        file: ./Dockerfile.windows
-        tags: webhookshell:test-windows
-        load: true  # Load the image into Docker
-        no-cache: true  # Disable build cache
-      
-     - name: Test Windows Docker image
-       shell: powershell
-       run: |
-          try {
-            # Start the container
-            docker run -d --name test-webhookshell -p 8080:8080 webhookshell:test-windows
-
-            # Wait for the health endpoint to respond (up to 120 seconds)
-            $timeout = 120
-            $interval = 5
-            $elapsed = 0
-            $healthy = $false
-            while ($elapsed -lt $timeout -and -not $healthy) {
-              try {
-                $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -TimeoutSec 5 -ErrorAction Stop
-                if ($response.Content -match "Healthy") {
-                  $healthy = $true
-                }
-              } catch {
-                Write-Host "Waiting for container to be ready... ($elapsed/$timeout seconds)"
-                Start-Sleep -Seconds $interval
-                $elapsed += $interval
+    # Build with standard Docker commands
+    - name: Build Docker image
+      shell: powershell
+      run: |
+        # Build the image using standard Docker command
+        docker build -t webhookshell:test-windows -f Dockerfile.windows .
+        
+        # Verify the image was created
+        docker images webhookshell:test-windows
+    
+    - name: Test Windows Docker image
+      shell: powershell
+      run: |
+        try {
+          # Start the container
+          docker run -d --name test-webhookshell -p 8080:8080 webhookshell:test-windows
+          
+          # Wait for the health endpoint to respond (up to 120 seconds)
+          $timeout = 120
+          $interval = 5
+          $elapsed = 0
+          $healthy = $false
+          while ($elapsed -lt $timeout -and -not $healthy) {
+            try {
+              $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -TimeoutSec 5 -ErrorAction Stop
+              if ($response.Content -match "Healthy") {
+                $healthy = $true
               }
+            } catch {
+              Write-Host "Waiting for container to be ready... ($elapsed/$timeout seconds)"
+              Start-Sleep -Seconds $interval
+              $elapsed += $interval
             }
-
-            if (-not $healthy) {
-              Write-Host "❌ Container failed to become healthy after $timeout seconds"
-              docker logs test-webhookshell
-              exit 1
-            }
-
-            # Log success and response details
-            Write-Host "✅ Health endpoint test passed"
-            
-            #Cleanup
-            docker rm -f test-webhookshell
+          }
+          
+          if (-not $healthy) {
+            Write-Host "❌ Container failed to become healthy after $timeout seconds"
+            docker logs test-webhookshell
+            exit 1
+          }
+          
+          # Log success and response details
+          Write-Host "✅ Health endpoint test passed"
+          
+          # Cleanup
+          docker rm -f test-webhookshell
+        } catch {
+          Write-Host "❌ Test failed: $_"
+          docker logs test-webhookshell
+          docker rm -f test-webhookshell -ErrorAction SilentlyContinue
+          exit 1
+        }

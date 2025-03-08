@@ -95,7 +95,7 @@ jobs:
         github-token: ${{secrets.GITHUB_TOKEN}}
         script: |
             const fs = require('fs');
-            const summaryContent = fs.readFileSync('performance_tests/reports/summary.md', 'utf8');
+            const summaryContent = fs.readFileSync('performance_tests/reports/load_test_results_*.json', 'utf8');
             github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
@@ -105,7 +105,7 @@ jobs:
             
     - name: Display Test Summary for Linux Build
       run: |
-        cat performance_tests/reports/summary.md
+        cat performance_tests/reports/load_test_results_*.json
 
     - name: Cleanup Docker Container
       if: always()

@@ -17,9 +17,6 @@ jobs:
     uses: ./.github/workflows/docker-multi-arch-build.yml
     with:
       push_images: true
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
   
   # Skipping - For Development only
   performance-testing:

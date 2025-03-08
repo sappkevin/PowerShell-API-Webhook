@@ -9,6 +9,13 @@ on:
         required: false
         type: boolean
         default: false
+    secrets:
+      DOCKERHUB_USERNAME:
+        description: 'Docker Hub username'
+        required: true
+      DOCKERHUB_TOKEN:
+        description: 'Docker Hub token'
+        required: true
 
 jobs:
   build-linux:

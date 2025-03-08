@@ -166,9 +166,3 @@ jobs:
           - Update appsettings.json with your webhook configurations
           - Ensure proper permissions for script execution
           - Configure IP allow lists if needed
- 
-
-  
-
-
-  

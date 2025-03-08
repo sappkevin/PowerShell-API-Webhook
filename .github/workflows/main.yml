@@ -41,7 +41,7 @@ jobs:
           echo "Generated version: ${VERSION}"
           echo "Generated tag: ${TAG_NAME}"
 
-  docker-build-and-test-images:
+  docker-build-test-deploy-images:
     needs: [test,generate-version-number]
     if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
     uses: ./.github/workflows/docker-multi-arch-build.yml
@@ -51,23 +51,10 @@ jobs:
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-
-  docker-deploy-images:
-    needs: [docker-build-and-test-images]  
-    permissions:
-      contents: read
-      packages: write
-    if: ${{ false }}  
-    uses: ./.github/workflows/docker-deploy.yml
-    with:
-      version_tag: ${{ needs.generate-version-number.outputs.version }}
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
   
   # Skipping - For Development only
   performance-testing:
-    needs: [docker-deploy-images]
+    needs: [docker-build-test-deploy-images]
     if: ${{ false }}  
     uses: ./.github/workflows/performance-test.yml
     with:

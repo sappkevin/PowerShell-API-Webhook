@@ -134,6 +134,11 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
+    - name: Build .NET Application
+      run: |
+        dotnet restore
+        dotnet publish src/Webhookshell.csproj -c Release -o ./src/bin/Release/net8.0/publish
+
     - name: Build and Start Docker Container for Testing
       run: |
           docker build -t webhookshellwin:testwindows -f Dockerfile.windows .

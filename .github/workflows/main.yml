@@ -46,14 +46,18 @@ jobs:
     if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
     uses: ./.github/workflows/docker-multi-arch-build.yml
     with:
-      push_images: false  # Just build and test, don't push yet
+      push_images: true
+      version_tag: ${{ needs.generate-version-number.outputs.version }}
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
   docker-deploy-images:
     needs: [docker-build-and-test-images]  
     permissions:
       contents: read
       packages: write
-    if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}
+    if: ${{ false }}  
     uses: ./.github/workflows/docker-deploy.yml
     with:
       version_tag: ${{ needs.generate-version-number.outputs.version }}

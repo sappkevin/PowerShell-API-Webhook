@@ -24,7 +24,7 @@ jobs:
   # Skipping - For Development only
   performance-testing:
     needs: [docker-build-test-deploy-images]
-    if: ${{ false }}  
+    if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }} 
     uses: ./.github/workflows/performance-test.yml
     with:
       concurrentUsers: '50'
@@ -34,7 +34,7 @@ jobs:
   build-and-release-binaries:
     needs: [performance-testing]
     runs-on: ubuntu-latest
-    if: ${{ false }}  
+    if: ${{ (github.ref == 'refs/heads/main') && (github.event_name != 'pull_request') }}  
     permissions:
       contents: write
     steps:
@@ -71,30 +71,6 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.0.x'
-        
-    - name: Create version number
-      id: create_version
-      run: |
-        # Create a valid version using date and GitHub run number
-        # Format: 1.0.YYDDD.RUNID (limited to 4 segments for .NET versioning)
-        DATE_PART=$(date +%y%j)
-        RUN_PART="${GITHUB_RUN_NUMBER:-1}"
-        
-        # Ensure run part is numeric and limited to 5 digits max
-        RUN_PART=$(echo $RUN_PART | tr -cd '0-9' | cut -c 1-5)
-        
-        # Format the version string - valid for .NET (Major.Minor.Build.Revision)
-        BUILD_NUMBER="${DATE_PART}"
-        REVISION_NUMBER="${RUN_PART}"
-        VERSION="1.0.${BUILD_NUMBER}.${REVISION_NUMBER}"
-        TAG_NAME="v${VERSION}"
-        
-        echo "VERSION=${VERSION}" >> $GITHUB_ENV
-        echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
-        echo "version=${VERSION}" >> $GITHUB_OUTPUT
-        
-        echo "Generated version: ${VERSION}"
-        echo "Generated tag: ${TAG_NAME}"
             
     - name: Create and push tag
       run: |

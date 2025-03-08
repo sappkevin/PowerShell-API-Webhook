@@ -53,7 +53,7 @@ jobs:
         if: ${{ inputs.push_images }}
         shell: powershell
         run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/webhookshell:${{ inputs.version_tag }}-linux
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/webhookshell:latest-linux
   
   build-windows:
     runs-on: windows-latest
@@ -128,4 +128,4 @@ jobs:
       if: ${{ inputs.push_images }}
       shell: powershell
       run: |
-        docker push ${{ secrets.DOCKERHUB_USERNAME }}/webhookshell:${{ inputs.version_tag }}-windows
+        docker push ${{ secrets.DOCKERHUB_USERNAME }}/webhookshell:latest-windows

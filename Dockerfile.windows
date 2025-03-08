@@ -26,8 +26,8 @@ RUN New-Item -ItemType Directory -Path "C:\app\scripts\python" -Force
 
 # Verify installations
 RUN Write-Output "Verifying installations:"; \
-    Write-Output "dotnet: $(dotnet --version)"; \
-    Write-Output "powershell: $(pwsh -Command "$PSVersionTable.PSVersion.ToString()")"
+    Write-Output "dotnet version installed: $(dotnet --version)"; \
+    Write-Output "powershellcore version installed: $(pwsh -version)";
 
 # Copy published files (assuming you build the app externally)
 WORKDIR /app

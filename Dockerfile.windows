@@ -8,7 +8,7 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPref
 RUN Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 
 # Install Python 3.10.11 using Chocolatey with proper path handling
-RUN choco install python310 --version=3.10.11 -y --no-progress
+RUN choco install python310 --version=3.10.11 -y
 
 # Install PowerShell Core 7.4.1 using Chocolatey
 RUN choco install powershell-core --version=7.4.1 -y --no-progress
@@ -24,7 +24,6 @@ RUN New-Item -ItemType Directory -Path "C:\app\scripts\python" -Force
 # Verify installations
 RUN Write-Host "Verifying installations:"; \
     Write-Host "dotnet: $(dotnet --version)"; \
-    Write-Host "python: $(& $env:ProgramFiles\Python310\python.exe --version)"; \
     Write-Host "powershell: $(pwsh -Command "$PSVersionTable.PSVersion.ToString()")"
 
 # Copy published files (assuming you build the app externally)

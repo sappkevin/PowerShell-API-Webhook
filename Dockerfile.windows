@@ -13,8 +13,11 @@ RUN choco install python310 --version=3.10.11 -y --no-progress
 # Install PowerShell Core 7.4.1 using Chocolatey
 RUN choco install powershell-core --version=7.4.1 -y --no-progress
 
+# Install .NET 8.0 SDK
+RUN choco install dotnet-8.0-sdk -y --no-progress
+
 # Update PATH and find Python
-RUN Write-Host "Refreshing environment variables..."; \
+RUN Write-Output "Refreshing environment variables..."; \
     $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine');
 
 # Create scripts directory structure
@@ -22,9 +25,9 @@ RUN New-Item -ItemType Directory -Path "C:\app\scripts\powershell" -Force
 RUN New-Item -ItemType Directory -Path "C:\app\scripts\python" -Force
 
 # Verify installations
-RUN Write-Host "Verifying installations:"; \
-    Write-Host "dotnet: $(dotnet --version)"; \
-    Write-Host "powershell: $(pwsh -Command "$PSVersionTable.PSVersion.ToString()")"
+RUN Write-Output "Verifying installations:"; \
+    Write-Output "dotnet: $(dotnet --version)"; \
+    Write-Output "powershell: $(pwsh -Command "$PSVersionTable.PSVersion.ToString()")"
 
 # Copy published files (assuming you build the app externally)
 WORKDIR /app

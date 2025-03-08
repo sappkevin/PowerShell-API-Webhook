@@ -56,11 +56,10 @@ jobs:
           
           docker rm -f test-webhookshell
           
-      - name: Push Docker image for Linux
+      - name: Push Docker image
         if: ${{ inputs.push_images }}
-        shell: powershell
         run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/webhookshell:latest-linux
+          docker push sappkevin/webhookshell:latest-linux
   
   build-windows:
     runs-on: windows-latest

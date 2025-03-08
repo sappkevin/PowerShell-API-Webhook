@@ -75,7 +75,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+          
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+    
+      - name: Build .NET Application
+        run: |
+          dotnet restore
+          dotnet publish src/Webhookshell.csproj -c Release -o ./src/bin/Release/net8.0/publish
+          
       - name: Set version variables
         id: version
         shell: bash

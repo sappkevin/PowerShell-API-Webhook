@@ -167,13 +167,13 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: performance-test-reports-windows  # Differentiate from Linux
-        path: D:\a\PowerShell-API-Webhook\PowerShell-API-Webhook\performance_tests\reports
+        path: performance_tests\reports
         if-no-files-found: warn
     
     - name: Display Test Summary for Windows Build
       continue-on-error: true
       run: |
-        type D:\a\PowerShell-API-Webhook\PowerShell-API-Webhook\performance_tests\reports\load_test_results_*.json
+        if (test-path performance_tests\reports\load_test_results_*.json){type performance_tests\reports\load_test_results_*.json}
 
     - name: Cleanup Docker Container
       if: always()

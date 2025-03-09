@@ -132,6 +132,7 @@ class WebhookLoadTester {
 
     [void] GenerateReport() {
         $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+        if(!$reportPath){$reportPath = "performance_tests\reports"}
         $reportFile = "$reportPath\load_test_results_$timestamp.json"
 
         Write-Host "`nWebhookShell API Load Test Results" -ForegroundColor Cyan

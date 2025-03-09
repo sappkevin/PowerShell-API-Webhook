@@ -134,6 +134,8 @@ class WebhookLoadTester {
         $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
         $reportFile = "performance_tests\reports\load_test_results_$timestamp.json"
 
+        #Start output file
+        Write-Output "WebhookShell API" | Out-File -FilePath $reportFile -Append
         Write-Output "`nWebhookShell API Load Test Results" 
         Write-Output ("-" * 80)
         Write-Output ("{0,-15} {1,8} {2,8} {3,8} {4,8} {5,8}" -f "Scenario", "Success", "Fail", "RPS", "Avg(ms)", "p95(ms)")
@@ -163,7 +165,7 @@ class WebhookLoadTester {
             results = $this.results
         }
 
-        $reportData | ConvertTo-Json -Depth 10 | Out-File $reportFile
+        $reportData | ConvertTo-Json -Depth 10 | Out-File -FilePath $reportFile -Append
         Write-Output "Results saved to $reportFile" 
     }
 }

@@ -28,9 +28,9 @@ class WebhookLoadTester {
     }
 
     [void] RunTest() {
-        Write-Host "Starting load test against $($this.apiUrl)" -ForegroundColor Green
-        Write-Host "Concurrent users: $($this.concurrentUsers)"
-        Write-Host "Test duration: $($this.durationSeconds / 60) minutes"
+        Write-Output "Starting load test against $($this.apiUrl)" 
+        Write-Output "Concurrent users: $($this.concurrentUsers)"
+        Write-Output "Test duration: $($this.durationSeconds / 60) minutes"
 
         $this.RunScenarios()
         $this.GenerateReport()
@@ -103,11 +103,11 @@ class WebhookLoadTester {
                 [Threading.Interlocked]::Increment([ref]$this.results["GET API"].success) | Out-Null
                 $this.results["GET API"].latencies.Add($latency)
             } else {
-                Write-Host "GET failed: $($response.StatusCode)" -ForegroundColor Red
+                Write-Output "GET failed: $($response.StatusCode)" 
                 [Threading.Interlocked]::Increment([ref]$this.results["GET API"].fail) | Out-Null
             }
         } catch {
-            Write-Host "GET request error: $_" -ForegroundColor Red
+            Write-Output "GET request error: $_" 
             [Threading.Interlocked]::Increment([ref]$this.results["GET API"].fail) | Out-Null
         }
     }
@@ -121,23 +121,22 @@ class WebhookLoadTester {
                 [Threading.Interlocked]::Increment([ref]$this.results[$scenario].success) | Out-Null
                 $this.results[$scenario].latencies.Add($latency)
             } else {
-                Write-Host "$scenario failed: $($response.StatusCode)" -ForegroundColor Red
+                Write-Output "$scenario failed: $($response.StatusCode)" 
                 [Threading.Interlocked]::Increment([ref]$this.results[$scenario].fail) | Out-Null
             }
         } catch {
-            Write-Host "$scenario request error: $_" -ForegroundColor Red
+            Write-Output "$scenario request error: $_" 
             [Threading.Interlocked]::Increment([ref]$this.results[$scenario].fail) | Out-Null
         }
     }
 
     [void] GenerateReport() {
         $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-        if(!$reportPath){$reportPath = "performance_tests\reports"}
-        $reportFile = "$reportPath\load_test_results_$timestamp.json"
+        $reportFile = "performance_tests\reports\load_test_results_$timestamp.json"
 
-        Write-Host "`nWebhookShell API Load Test Results" -ForegroundColor Cyan
-        Write-Host ("-" * 80)
-        Write-Host ("{0,-15} {1,8} {2,8} {3,8} {4,8} {5,8}" -f "Scenario", "Success", "Fail", "RPS", "Avg(ms)", "p95(ms)")
+        Write-Output "`nWebhookShell API Load Test Results" 
+        Write-Output ("-" * 80)
+        Write-Output ("{0,-15} {1,8} {2,8} {3,8} {4,8} {5,8}" -f "Scenario", "Success", "Fail", "RPS", "Avg(ms)", "p95(ms)")
 
         foreach ($scenario in $this.results.Keys) {
             $data = $this.results[$scenario]
@@ -148,9 +147,9 @@ class WebhookLoadTester {
                 $sortedLatencies = $latenciesMs | Sort-Object
                 $p95Latency = $sortedLatencies[[math]::Floor($sortedLatencies.Count * 0.95)]
 
-                Write-Host ("{0,-15} {1,8} {2,8} {3,8:F2} {4,8:F2} {5,8:F2}" -f $scenario, $data.success, $data.fail, $rps, $avgLatency, $p95Latency)
+                Write-Output ("{0,-15} {1,8} {2,8} {3,8:F2} {4,8:F2} {5,8:F2}" -f $scenario, $data.success, $data.fail, $rps, $avgLatency, $p95Latency)
             } else {
-                Write-Host ("{0,-15} {1,8} {2,8} {3,8} {4,8} {5,8}" -f $scenario, 0, 0, 0, "N/A", "N/A")
+                Write-Output ("{0,-15} {1,8} {2,8} {3,8} {4,8} {5,8}" -f $scenario, 0, 0, 0, "N/A", "N/A")
             }
         }
 
@@ -165,7 +164,7 @@ class WebhookLoadTester {
         }
 
         $reportData | ConvertTo-Json -Depth 10 | Out-File $reportFile
-        Write-Host "Results saved to $reportFile" -ForegroundColor Green
+        Write-Output "Results saved to $reportFile" 
     }
 }
 

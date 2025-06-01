@@ -335,8 +335,8 @@ namespace Webhookshell.Controllers
         /// </summary>
         private class ScriptPattern
         {
-            public string[] RequiredParams { get; set; } = Array.Empty<string>();
-            public string[] OptionalParams { get; set; } = Array.Empty<string>();
+            public string[] RequiredParams { get; set; } = new string[0];
+            public string[] OptionalParams { get; set; } = new string[0];
             public int MinimumMatches { get; set; } = 1;
         }
 

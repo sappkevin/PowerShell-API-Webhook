@@ -99,10 +99,24 @@ namespace Webhookshell.Controllers
         ///     POST /webhook/v1?key=24ffc5be-7dd8-479f-898e-27169bf23e7f
         ///     {
         ///        "fqdn": "test-device.linkedin.biz",
-        ///        "ipv4Addr": "172.30.29.23",
+        ///        "ipv4Addr": "172.30.29.23"
+        ///     }
+        ///     # Auto-detects webhookshell.ps1 (IPv4 only)
+        /// 
+        ///     POST /webhook/v1?key=24ffc5be-7dd8-479f-898e-27169bf23e7f
+        ///     {
+        ///        "fqdn": "test-device.linkedin.biz",
+        ///        "ipv6Addr": "2001:db8::1",
         ///        "event": "Connected"
         ///     }
-        ///     # Auto-detects webhookshell.ps1 based on 'fqdn' and 'ipv4Addr' parameters
+        ///     # Auto-detects webhookshell.ps1 (IPv6 only)
+        /// 
+        ///     POST /webhook/v1?key=24ffc5be-7dd8-479f-898e-27169bf23e7f
+        ///     {
+        ///        "fqdn": "test-device.linkedin.biz",
+        ///        "event": "test-connected"
+        ///     }
+        ///     # Auto-detects webhookshell.ps1 (minimal params for testing)
         /// 
         ///     POST /webhook/v1?key=24ffc5be-7dd8-479f-898e-27169bf23e7f
         ///     {
@@ -113,28 +127,34 @@ namespace Webhookshell.Controllers
         ///        "nameSrv1": "lva1-adc01.linkedin.biz",
         ///        "serialNumber": "C02ZQ406MD6R"
         ///     }
-        ///     # Auto-detects webhookshell.ps1 with IPv6 support
+        ///     # Auto-detects webhookshell.ps1 (full parameters)
         /// 
         ///     POST /webhook/v1?key=24ffc5be-7dd8-479f-898e-27169bf23e7f
         ///     {
         ///        "names": "test-dns.corp.linkedin.com",
         ///        "command": "check"
         ///     }
-        ///     # Auto-detects condForwarderAPI.ps1 based on 'names' and 'command' parameters
+        ///     # Auto-detects condForwarderAPI.ps1 (required params)
         /// 
         ///     POST /webhook/v1?key=24ffc5be-7dd8-479f-898e-27169bf23e7f
         ///     {
-        ///        "Component": "system",
-        ///        "OutputFormat": "json"
-        ///     }
-        ///     # Auto-detects health-check-script.ps1 based on 'Component' parameter
-        /// 
-        ///     POST /webhook/v1?key=24ffc5be-7dd8-479f-898e-27169bf23e7f
-        ///     {
-        ///        "RetentionDays": "30",
+        ///        "names": "app.prod.linkedin.com,api.grid.linkedin.com",
+        ///        "command": "add",
         ///        "DryRun": "true"
         ///     }
-        ///     # Auto-detects daily-cleanup.ps1 based on 'RetentionDays' parameter
+        ///     # Auto-detects condForwarderAPI.ps1 (with optional dry run)
+        /// 
+        ///     POST /webhook/v1?key=24ffc5be-7dd8-479f-898e-27169bf23e7f
+        ///     {
+        ///        "Component": "system"
+        ///     }
+        ///     # Auto-detects health-check-script.ps1 (minimal health check)
+        /// 
+        ///     POST /webhook/v1?key=24ffc5be-7dd8-479f-898e-27169bf23e7f
+        ///     {
+        ///        "RetentionDays": "30"
+        ///     }
+        ///     # Auto-detects daily-cleanup.ps1 (minimal cleanup)
         /// 
         /// </remarks>
         /// <response code="200">Returns the script execution results</response>
@@ -219,39 +239,78 @@ namespace Webhookshell.Controllers
         {
             var paramKeys = parameters.Keys.Select(k => k.ToLowerInvariant()).ToHashSet();
 
-            // Define parameter patterns for each script
-            var scriptPatterns = new Dictionary<string, string[]>
+            // Define parameter patterns for each script with required and optional parameters
+            var scriptPatterns = new Dictionary<string, ScriptPattern>
             {
-                // DNS Record Management - characterized by 'fqdn' and 'ipv4addr' or 'ipv6addr' parameters
-                ["webhookshell.ps1"] = new[] { "fqdn", "ipv4addr", "ipv6addr", "event", "namesrv1", "serialnumber" },
+                // DNS Record Management - requires at least fqdn + (ipv4addr OR ipv6addr OR event)
+                ["webhookshell.ps1"] = new ScriptPattern
+                {
+                    RequiredParams = new[] { "fqdn" },
+                    OptionalParams = new[] { "ipv4addr", "ipv6addr", "event", "namesrv1", "namesrv2", "serialnumber" },
+                    MinimumMatches = 2 // fqdn + at least one other param
+                },
                 
-                // DNS Forwarder API - characterized by 'names' and 'command' parameters
-                ["condForwarderAPI.ps1"] = new[] { "names", "command" },
+                // DNS Forwarder API - requires both names and command
+                ["condForwarderAPI.ps1"] = new ScriptPattern
+                {
+                    RequiredParams = new[] { "names", "command" },
+                    OptionalParams = new[] { "a", "stage", "dryrun" },
+                    MinimumMatches = 2 // both names and command required
+                },
                 
-                // Health Check - characterized by 'component' or 'outputformat' parameters
-                ["health-check-script.ps1"] = new[] { "component", "outputformat", "detailed" },
+                // Health Check - requires at least one health-related parameter
+                ["health-check-script.ps1"] = new ScriptPattern
+                {
+                    RequiredParams = new[] { },
+                    OptionalParams = new[] { "component", "outputformat", "detailed", "format" },
+                    MinimumMatches = 1 // any health check param
+                },
                 
-                // Daily Cleanup - characterized by 'retentiondays', 'loglevel', or 'dryrun' parameters
-                ["daily-cleanup.ps1"] = new[] { "retentiondays", "loglevel", "includepaths", "excludepaths" }
+                // Daily Cleanup - requires at least one cleanup-related parameter
+                ["daily-cleanup.ps1"] = new ScriptPattern
+                {
+                    RequiredParams = new[] { },
+                    OptionalParams = new[] { "retentiondays", "loglevel", "includepaths", "excludepaths", "dryrun" },
+                    MinimumMatches = 1 // any cleanup param
+                }
             };
 
             // Find the script with the best match
             string bestMatch = null;
             int highestScore = 0;
+            bool hasRequiredParams = false;
 
             foreach (var scriptPattern in scriptPatterns)
             {
                 var scriptName = scriptPattern.Key;
-                var requiredParams = scriptPattern.Value;
+                var pattern = scriptPattern.Value;
                 
-                // Calculate match score (number of matching parameters)
-                int matchScore = requiredParams.Count(param => paramKeys.Contains(param));
+                // Check if all required parameters are present
+                bool allRequiredPresent = pattern.RequiredParams.All(param => paramKeys.Contains(param));
                 
-                // Prefer scripts with higher match scores
-                if (matchScore > highestScore && matchScore > 0)
+                // Calculate total match score (required + optional parameters)
+                int requiredMatches = pattern.RequiredParams.Count(param => paramKeys.Contains(param));
+                int optionalMatches = pattern.OptionalParams.Count(param => paramKeys.Contains(param));
+                int totalMatches = requiredMatches + optionalMatches;
+                
+                // Calculate weighted score (required params worth more)
+                int weightedScore = (requiredMatches * 3) + optionalMatches;
+                
+                // Check if this pattern meets the minimum criteria
+                bool meetsMinimum = totalMatches >= pattern.MinimumMatches && allRequiredPresent;
+                
+                _logger.LogDebug($"Script '{scriptName}': Required={requiredMatches}/{pattern.RequiredParams.Length}, " +
+                               $"Optional={optionalMatches}/{pattern.OptionalParams.Length}, " +
+                               $"Total={totalMatches}, WeightedScore={weightedScore}, " +
+                               $"MeetsMinimum={meetsMinimum}");
+                
+                // Prefer scripts that meet minimum requirements and have higher scores
+                if (meetsMinimum && (weightedScore > highestScore || 
+                    (weightedScore == highestScore && allRequiredPresent && !hasRequiredParams)))
                 {
-                    highestScore = matchScore;
+                    highestScore = weightedScore;
                     bestMatch = scriptName;
+                    hasRequiredParams = allRequiredPresent;
                 }
             }
 
@@ -269,6 +328,16 @@ namespace Webhookshell.Controllers
             }
 
             return bestMatch;
+        }
+
+        /// <summary>
+        /// Defines the pattern for script parameter matching
+        /// </summary>
+        private class ScriptPattern
+        {
+            public string[] RequiredParams { get; set; } = Array.Empty<string>();
+            public string[] OptionalParams { get; set; } = Array.Empty<string>();
+            public int MinimumMatches { get; set; } = 1;
         }
 
         /// <summary>

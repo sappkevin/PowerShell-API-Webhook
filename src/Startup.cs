@@ -11,8 +11,6 @@ using Microsoft.OpenApi.Models;
 using System;
 using System.IO;
 using System.Reflection;
-using Hangfire;
-using Hangfire.Storage.SQLite;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
@@ -36,7 +34,13 @@ namespace Webhookshell
                 Configuration.GetSection("Scripts").Bind(options);
             });
             
-            services.AddControllers();
+            services.AddControllers()
+                .AddJsonOptions(options =>
+                {
+                    // Configure JSON serialization for better parameter handling
+                    options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+                    options.JsonSerializerOptions.PropertyNamingPolicy = null; // Keep original casing
+                });
             
             // Register Swagger
             services.AddSwaggerGen(c =>
@@ -147,10 +151,9 @@ namespace Webhookshell
             services.AddSingleton<IScriptValidationService, ScriptValidationService>();
 
             // Register validators
-            // The order is matter, if the first validator fails
-            // the service return validation errors and stop further validation.
-            // This was made like that because in some cases when validator 1 is failed
-            // then it does not make sense to run the validator 2 because it might depend on the 1st one.
+            // The order matters - if the first validator fails, the service returns validation errors 
+            // and stops further validation. This is designed this way because some validators may 
+            // depend on others completing successfully first.
             services.AddSingleton<IScriptValidator, HttpTriggerValidator>();
             services.AddSingleton<IScriptValidator, IPAddressValidator>();
             services.AddSingleton<IScriptValidator, KeyValidator>();
@@ -191,34 +194,22 @@ namespace Webhookshell
 
             app.UseAuthorization();
 
-            // Configure Hangfire dashboard and server
-            if (Configuration.GetValue<bool>("Hangfire:Enabled", false))
-            {
-                var dashboardEnabled = Configuration.GetValue<bool>("Hangfire:DashboardEnabled", true);
-                if (dashboardEnabled)
-                {
-                    app.UseHangfireDashboard("/hangfire", new DashboardOptions
-                    {
-                        // In production, you should use proper authorization
-                        Authorization = new[] { new HangfireAuthorizationFilter() }
-                    });
-                }
-                
-                // Configure recurring jobs
-                var recurringJobsService = app.ApplicationServices.GetService<RecurringJobsService>();
-                recurringJobsService?.ConfigureRecurringJobs();
-            }
+            // Configure Hangfire dashboard and server - REMOVED FOR CORE TESTING
+            // if (Configuration.GetValue<bool>("Hangfire:Enabled", false))
+            // {
+            //     // Hangfire dashboard configuration removed for core functionality testing
+            // }
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
                 
-                // Map Hangfire dashboard if enabled
-                if (Configuration.GetValue<bool>("Hangfire:Enabled", false) && 
-                    Configuration.GetValue<bool>("Hangfire:DashboardEnabled", true))
-                {
-                    endpoints.MapHangfireDashboard();
-                }
+                // Map Hangfire dashboard if enabled - REMOVED FOR CORE TESTING
+                // if (Configuration.GetValue<bool>("Hangfire:Enabled", false) && 
+                //     Configuration.GetValue<bool>("Hangfire:DashboardEnabled", true))
+                // {
+                //     endpoints.MapHangfireDashboard();
+                // }
             });
         }
     }

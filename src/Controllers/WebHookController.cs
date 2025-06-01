@@ -245,32 +245,32 @@ namespace Webhookshell.Controllers
                 // DNS Record Management - requires at least fqdn + (ipv4addr OR ipv6addr OR event)
                 ["webhookshell.ps1"] = new ScriptPattern
                 {
-                    RequiredParams = new[] { "fqdn" },
-                    OptionalParams = new[] { "ipv4addr", "ipv6addr", "event", "namesrv1", "namesrv2", "serialnumber" },
+                    RequiredParams = new string[] { "fqdn" },
+                    OptionalParams = new string[] { "ipv4addr", "ipv6addr", "event", "namesrv1", "namesrv2", "serialnumber" },
                     MinimumMatches = 2 // fqdn + at least one other param
                 },
                 
                 // DNS Forwarder API - requires both names and command
                 ["condForwarderAPI.ps1"] = new ScriptPattern
                 {
-                    RequiredParams = new[] { "names", "command" },
-                    OptionalParams = new[] { "a", "stage", "dryrun" },
+                    RequiredParams = new string[] { "names", "command" },
+                    OptionalParams = new string[] { "a", "stage", "dryrun" },
                     MinimumMatches = 2 // both names and command required
                 },
                 
                 // Health Check - requires at least one health-related parameter
                 ["health-check-script.ps1"] = new ScriptPattern
                 {
-                    RequiredParams = new[] { },
-                    OptionalParams = new[] { "component", "outputformat", "detailed", "format" },
+                    RequiredParams = new string[0],
+                    OptionalParams = new string[] { "component", "outputformat", "detailed", "format" },
                     MinimumMatches = 1 // any health check param
                 },
                 
                 // Daily Cleanup - requires at least one cleanup-related parameter
                 ["daily-cleanup.ps1"] = new ScriptPattern
                 {
-                    RequiredParams = new[] { },
-                    OptionalParams = new[] { "retentiondays", "loglevel", "includepaths", "excludepaths", "dryrun" },
+                    RequiredParams = new string[0],
+                    OptionalParams = new string[] { "retentiondays", "loglevel", "includepaths", "excludepaths", "dryrun" },
                     MinimumMatches = 1 // any cleanup param
                 }
             };

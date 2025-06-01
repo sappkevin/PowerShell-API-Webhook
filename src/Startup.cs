@@ -101,50 +101,6 @@ namespace Webhookshell
                 });
             }
 
-            // Configure Hangfire
-            if (Configuration.GetValue<bool>("Hangfire:Enabled", false))
-            {
-                // Choose database provider based on configuration
-                if (Configuration.GetValue<bool>("Hangfire:UseSqlServer", false) && 
-                    !string.IsNullOrEmpty(Configuration.GetConnectionString("HangfireConnection")))
-                {
-                    services.AddHangfire(config => config
-                        .SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
-                        .UseSimpleAssemblyNameTypeSerializer()
-                        .UseRecommendedSerializerSettings()
-                        .UseSqlServerStorage(Configuration.GetConnectionString("HangfireConnection")));
-                }
-                else
-                {
-                    // Use SQLite by default (lightweight, no external dependencies)
-                    var storagePath = Configuration.GetValue<string>("Hangfire:SQLitePath", "Data/hangfire.db");
-                    
-                    // Ensure directory exists
-                    var directory = Path.GetDirectoryName(storagePath);
-                    if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                    {
-                        Directory.CreateDirectory(directory);
-                    }
-                    
-                    services.AddHangfire(config => config
-                        .SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
-                        .UseSimpleAssemblyNameTypeSerializer()
-                        .UseRecommendedSerializerSettings()
-                        .UseSQLiteStorage(storagePath));
-                }
-
-                // Add the Hangfire server
-                services.AddHangfireServer(options =>
-                {
-                    options.WorkerCount = Configuration.GetValue<int>("Hangfire:WorkerCount", Environment.ProcessorCount * 2);
-                    options.Queues = new[] { "default", "critical", "scripts" };
-                });
-
-                // Register Hangfire services
-                services.AddSingleton<IBackgroundJobService, BackgroundJobService>();
-                services.AddSingleton<RecurringJobsService>();
-            }
-            
             // Register services as singletons for better performance in high-traffic scenarios
             services.AddSingleton<IScriptRunnerService, ScriptRunner>();
             services.AddSingleton<IHandlerDispatcher, HandlerDispatcher>();
@@ -194,22 +150,9 @@ namespace Webhookshell
 
             app.UseAuthorization();
 
-            // Configure Hangfire dashboard and server - REMOVED FOR CORE TESTING
-            // if (Configuration.GetValue<bool>("Hangfire:Enabled", false))
-            // {
-            //     // Hangfire dashboard configuration removed for core functionality testing
-            // }
-
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
-                
-                // Map Hangfire dashboard if enabled - REMOVED FOR CORE TESTING
-                // if (Configuration.GetValue<bool>("Hangfire:Enabled", false) && 
-                //     Configuration.GetValue<bool>("Hangfire:DashboardEnabled", true))
-                // {
-                //     endpoints.MapHangfireDashboard();
-                // }
             });
         }
     }

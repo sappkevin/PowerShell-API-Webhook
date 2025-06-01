@@ -16,10 +16,6 @@
 
   <ItemGroup>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
-    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.10" />
-    <PackageReference Include="Hangfire.Core" Version="1.8.10" />
-    <PackageReference Include="Hangfire.SqlServer" Version="1.8.10" />
-    <PackageReference Include="Hangfire.Storage.SQLite" Version="0.4.1" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.0" />
     <!-- For Rate Limiting -->
     <PackageReference Include="Microsoft.AspNetCore.RateLimiting" Version="7.0.0-rc.2.22476.2" />

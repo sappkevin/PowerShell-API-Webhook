@@ -14,7 +14,7 @@ using Microsoft.Extensions.Options;
 namespace Webhookshell.Controllers
 {
     /// <summary>
-    /// Controller for handling webhook requests to execute PowerShell scripts
+    /// Controller for handling webhook requests to execute PowerShell scripts with intelligent script detection
     /// </summary>
     [ApiController]
     [Route("[controller]/v1/")] // Defines the base route for this API controller
@@ -88,28 +88,53 @@ namespace Webhookshell.Controllers
         }
 
         /// <summary>
-        /// Executes a script via POST request with flexible parameter handling
+        /// Executes a script via POST request with intelligent script detection
         /// </summary>
         /// <param name="requestBody">Script execution request - can be DtoScript or flexible JSON</param>
         /// <param name="key">Security key from query string (optional if in body)</param>
-        /// <param name="script">Script name from query string (optional if in body)</param>
+        /// <param name="script">Script name from query string (optional - will auto-detect if not provided)</param>
         /// <remarks>
         /// Sample requests:
         /// 
         ///     POST /webhook/v1?key=24ffc5be-7dd8-479f-898e-27169bf23e7f
         ///     {
-        ///        "names": "test-dns.corp.linkedin.com test-dns2.corp.linkedin.com",
+        ///        "fqdn": "test-device.linkedin.biz",
+        ///        "ipv4Addr": "172.30.29.23",
+        ///        "event": "Connected"
+        ///     }
+        ///     # Auto-detects webhookshell.ps1 based on 'fqdn' and 'ipv4Addr' parameters
+        /// 
+        ///     POST /webhook/v1?key=24ffc5be-7dd8-479f-898e-27169bf23e7f
+        ///     {
+        ///        "fqdn": "test-device.linkedin.biz",
+        ///        "ipv4Addr": "172.30.29.23",
+        ///        "ipv6Addr": "2001:db8::1",
+        ///        "event": "Connected",
+        ///        "nameSrv1": "lva1-adc01.linkedin.biz",
+        ///        "serialNumber": "C02ZQ406MD6R"
+        ///     }
+        ///     # Auto-detects webhookshell.ps1 with IPv6 support
+        /// 
+        ///     POST /webhook/v1?key=24ffc5be-7dd8-479f-898e-27169bf23e7f
+        ///     {
+        ///        "names": "test-dns.corp.linkedin.com",
         ///        "command": "check"
         ///     }
+        ///     # Auto-detects condForwarderAPI.ps1 based on 'names' and 'command' parameters
         /// 
-        /// Or traditional format:
-        /// 
-        ///     POST /webhook/v1
+        ///     POST /webhook/v1?key=24ffc5be-7dd8-479f-898e-27169bf23e7f
         ///     {
-        ///        "script": "Test-Script.ps1",
-        ///        "key": "24ffc5be-7dd8-479f-898e-27169bf23e7f",
-        ///        "parameters": "-Param1 test -Param2 sample"
+        ///        "Component": "system",
+        ///        "OutputFormat": "json"
         ///     }
+        ///     # Auto-detects health-check-script.ps1 based on 'Component' parameter
+        /// 
+        ///     POST /webhook/v1?key=24ffc5be-7dd8-479f-898e-27169bf23e7f
+        ///     {
+        ///        "RetentionDays": "30",
+        ///        "DryRun": "true"
+        ///     }
+        ///     # Auto-detects daily-cleanup.ps1 based on 'RetentionDays' parameter
         /// 
         /// </remarks>
         /// <response code="200">Returns the script execution results</response>
@@ -139,21 +164,26 @@ namespace Webhookshell.Controllers
                 }
                 else
                 {
-                    // Flexible format - build parameters from JSON body
-                    var scriptName = script ?? GetDefaultScriptName();
+                    // Flexible format - detect script based on parameters
+                    var detectedScript = script ?? DetectScriptFromParameters(requestBody);
                     var apiKey = key ?? string.Empty;
 
-                    // Build parameters from JSON body for any script
+                    if (string.IsNullOrEmpty(detectedScript))
+                    {
+                        return BadRequest(new[] { "Unable to determine which script to execute based on the provided parameters. Please specify 'script' parameter or ensure parameters match a configured script pattern." });
+                    }
+
+                    // Build parameters from JSON body
                     var parameters = BuildParametersFromRequest(requestBody);
 
                     scriptToExecute = new DtoScript
                     {
-                        Script = scriptName,
+                        Script = detectedScript,
                         Key = apiKey,
                         Parameters = parameters
                     };
 
-                    _logger.LogInformation($"Flexible format detected. Using script: {scriptName}, Parameters: {parameters}");
+                    _logger.LogInformation($"Auto-detected script: {detectedScript}, Parameters: {parameters}");
                 }
 
                 // Fill in missing parameters from configuration
@@ -180,6 +210,65 @@ namespace Webhookshell.Controllers
                 _logger.LogError(ex, "Error processing webhook request");
                 return StatusCode(500, new[] { "An error occurred while processing the request" });
             }
+        }
+
+        /// <summary>
+        /// Detects which script to use based on the parameters in the request
+        /// </summary>
+        private string DetectScriptFromParameters(Dictionary<string, object> parameters)
+        {
+            var paramKeys = parameters.Keys.Select(k => k.ToLowerInvariant()).ToHashSet();
+
+            // Define parameter patterns for each script
+            var scriptPatterns = new Dictionary<string, string[]>
+            {
+                // DNS Record Management - characterized by 'fqdn' and 'ipv4addr' or 'ipv6addr' parameters
+                ["webhookshell.ps1"] = new[] { "fqdn", "ipv4addr", "ipv6addr", "event", "namesrv1", "serialnumber" },
+                
+                // DNS Forwarder API - characterized by 'names' and 'command' parameters
+                ["condForwarderAPI.ps1"] = new[] { "names", "command" },
+                
+                // Health Check - characterized by 'component' or 'outputformat' parameters
+                ["health-check-script.ps1"] = new[] { "component", "outputformat", "detailed" },
+                
+                // Daily Cleanup - characterized by 'retentiondays', 'loglevel', or 'dryrun' parameters
+                ["daily-cleanup.ps1"] = new[] { "retentiondays", "loglevel", "includepaths", "excludepaths" }
+            };
+
+            // Find the script with the best match
+            string bestMatch = null;
+            int highestScore = 0;
+
+            foreach (var scriptPattern in scriptPatterns)
+            {
+                var scriptName = scriptPattern.Key;
+                var requiredParams = scriptPattern.Value;
+                
+                // Calculate match score (number of matching parameters)
+                int matchScore = requiredParams.Count(param => paramKeys.Contains(param));
+                
+                // Prefer scripts with higher match scores
+                if (matchScore > highestScore && matchScore > 0)
+                {
+                    highestScore = matchScore;
+                    bestMatch = scriptName;
+                }
+            }
+
+            // Log the detection logic
+            if (!string.IsNullOrEmpty(bestMatch))
+            {
+                _logger.LogInformation($"Script detection: '{bestMatch}' matched with score {highestScore} for parameters: {string.Join(", ", paramKeys)}");
+            }
+            else
+            {
+                _logger.LogWarning($"Script detection: No script matched for parameters: {string.Join(", ", paramKeys)}");
+                // Fallback to first script in configuration
+                bestMatch = GetDefaultScriptName();
+                _logger.LogInformation($"Using fallback script: {bestMatch}");
+            }
+
+            return bestMatch;
         }
 
         /// <summary>

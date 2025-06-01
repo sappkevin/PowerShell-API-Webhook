@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Net;
 using System.Text.Json;
+using System; // Added for Exception class
 
 namespace Webhookshell.Controllers
 {
